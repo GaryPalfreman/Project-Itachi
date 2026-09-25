@@ -4,9 +4,13 @@ from unittest.mock import AsyncMock, patch
 import httpx
 
 from backend.app.jev import JevDecision, evaluate_prompt, parse_decision
+from backend.app import runtime_health
 
 
 class JevTests(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        runtime_health.reset()
+
     def test_parse_typed_decisions(self):
         value = parse_decision({
             "answers": {
