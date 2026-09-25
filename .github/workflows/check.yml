@@ -23,7 +23,8 @@ jobs:
           with TestClient(app) as client:
               assert client.get('/').status_code == 200
               assert client.get('/api/health').status_code == 200
-              assert client.get('/api/graph').status_code == 200
+              assert client.get('/api/graph').status_code == 403
+              assert client.get('/api/health').json()['knowledge_enabled'] is False
           PY
       - name: Streamlit smoke test
         run: |
