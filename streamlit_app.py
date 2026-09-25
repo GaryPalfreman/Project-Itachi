@@ -285,7 +285,7 @@ if prompt:
         st.session_state.history.append({
             'role': 'assistant',
             'content': utility_reply,
-            'route': 'Local context utility',
+            'route': '',
         })
         st.stop()
 
