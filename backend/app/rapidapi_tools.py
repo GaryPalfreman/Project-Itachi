@@ -11,6 +11,8 @@ from urllib.parse import quote
 
 import httpx
 
+from .runtime_health import available, record_failure, record_success
+
 ALPHA_HOST = "alpha-vantage.p.rapidapi.com"
 GEODB_HOST = "wft-geo-db.p.rapidapi.com"
 WORDS_HOST = "wordsapiv1.p.rapidapi.com"
@@ -46,13 +48,22 @@ def _cache_put(key: str, value: object, ttl: int):
 
 
 async def _get_json(url: str, key: str, host: str, params: dict | None = None) -> dict:
-    async with httpx.AsyncClient(timeout=12) as client:
-        response = await client.get(url, headers=_headers(key, host), params=params or {})
-        response.raise_for_status()
-        value = response.json()
-        if not isinstance(value, dict):
-            raise RuntimeError("RapidAPI returned unsupported JSON")
+    health_key = f"external:{host}"
+    if not available(health_key):
+        raise RuntimeError("External capability is cooling down")
+    started = time.perf_counter()
+    try:
+        async with httpx.AsyncClient(timeout=12) as client:
+            response = await client.get(url, headers=_headers(key, host), params=params or {})
+            response.raise_for_status()
+            value = response.json()
+            if not isinstance(value, dict):
+                raise RuntimeError("External capability returned unsupported JSON")
+        record_success(health_key, (time.perf_counter() - started) * 1000.0)
         return value
+    except Exception as error:
+        record_failure(health_key, error)
+        raise
 
 
 def _provider_error(payload: dict) -> str:
