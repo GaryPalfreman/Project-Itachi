@@ -15,6 +15,7 @@ KNOWLEDGE = ROOT / "data" / "knowledge" / "public_knowledge.jsonl"
 STATE = ROOT / "data" / "knowledge" / "zep_state.json"
 MIN_INTERVAL_SECONDS = 6 * 60 * 60
 MAX_RECORDS_PER_RUN = 3
+DEFAULT_GROUP_ID = "project-itachi-public-knowledge"
 
 
 def load_state() -> dict:
@@ -66,6 +67,7 @@ if __name__ == "__main__":
         raise SystemExit(0)
 
     client = Zep(api_key=key)
+    group_id = os.getenv("ITACHI_ZEP_GROUP_ID", DEFAULT_GROUP_ID).strip() or DEFAULT_GROUP_ID
     completed = []
     for item in candidates:
         payload = (
@@ -76,6 +78,7 @@ if __name__ == "__main__":
             f"Public reference text: {item['text']}"
         )
         client.graph.add(
+            group_id=group_id,
             data=payload,
             type="text",
             source_description="Project Itachi public learning corpus",
