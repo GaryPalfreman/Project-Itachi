@@ -126,6 +126,38 @@ class AnswerGuardTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(answer, 'Recovered final prose')
         self.assertEqual(route, 'route-b')
 
+    async def test_final_failure_does_not_expose_internal_exception_type(self):
+        with patch.object(
+            answer_guard,
+            'autonomous_run',
+            new=AsyncMock(side_effect=RuntimeError('provider secret detail')),
+        ), patch.object(
+            answer_guard,
+            'reference_reply',
+            new=AsyncMock(return_value=''),
+        ):
+            answer, _ = await answer_guard.guaranteed_answer('hello', [])
+        self.assertNotIn('RuntimeError', answer)
+        self.assertNotIn('provider', answer.lower())
+        self.assertTrue(answer.strip())
+
+    async def test_exhausted_budget_returns_without_starting_fallback_work(self):
+        with patch.object(answer_guard, '_timeout_for', return_value=0), \
+             patch.object(
+                 answer_guard,
+                 'autonomous_run',
+                 new=AsyncMock(side_effect=AssertionError('primary should not start')),
+             ) as primary, \
+             patch.object(
+                 answer_guard,
+                 'reference_reply',
+                 new=AsyncMock(side_effect=AssertionError('fallback should not start')),
+             ) as reference:
+            answer, _ = await answer_guard.guaranteed_answer('hello', [])
+        primary.assert_not_awaited()
+        reference.assert_not_awaited()
+        self.assertTrue(answer.strip())
+
     async def test_guard_never_returns_empty_text(self):
         with patch.object(
             answer_guard,
