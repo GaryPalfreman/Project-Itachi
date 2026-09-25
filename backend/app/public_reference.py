@@ -31,7 +31,7 @@ async def reply(prompt: str, allow_web: bool) -> str:
     learned = search_learned(prompt, limit=4)
     if learned:
         return (
-            'Itachi learned public references (source excerpts; no generative model required):\n\n'
+            'Itachi learned public references:\n\n'
             + learned_context(learned)
         )
     if allow_web:
@@ -49,9 +49,9 @@ async def reply(prompt: str, allow_web: bool) -> str:
         except (httpx.HTTPError, ValueError):
             pages = []
         if pages:
-            return ('Public reference results (article snippets; no AI answer model connected):\n\n' +
+            return ('Public reference results:\n\n' +
                     '\n\n'.join(f"**{p['title']}** — {p['url']}\n{p['excerpt']}" for p in pages))
-        return 'Public reference search found no reliable match. A connected answer model is needed for this question.'
+        return 'I found no reliable public-reference match for this request.'
     if any(word in prompt.lower() for word in ('repository', 'repositories', 'github')):
         repos = load_public_catalog().get('repositories', [])[:6]
         if repos:
@@ -72,4 +72,4 @@ async def reply(prompt: str, allow_web: bool) -> str:
     except ValueError:
         pass
     return ('I can calculate locally. Enable public reference search for a source lookup. '
-            'Generative answers require an authorized model route or Hugging Face token in app secrets.')
+            'Deeper generated answers are currently unavailable.')
