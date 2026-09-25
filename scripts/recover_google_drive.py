@@ -19,7 +19,8 @@ TARGETS = {
 def download_file(client: httpx.Client, file_id: str, destination: Path, api_key: str = "") -> None:
     response = client.get(
         DRIVE_API + f"/files/{file_id}",
-        params={"alt": "media", **({"key": api_key} if api_key else {})},
+        params={"alt": "media"},
+        headers={"x-goog-api-key": api_key} if api_key else None,
     )
     response.raise_for_status()
     destination.parent.mkdir(parents=True, exist_ok=True)
