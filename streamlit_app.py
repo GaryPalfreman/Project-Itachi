@@ -402,7 +402,10 @@ if 'jev_error' not in st.session_state:
 memory_enabled = bool(nvidia_key)
 client_timezone = normalize_timezone(browser_context('timezone', 'UTC'))
 client_locale = browser_context('locale', '')
-client_context = client_context_text(client_timezone, client_locale)
+precise_location = False
+client_latitude = None
+client_longitude = None
+client_accuracy = None
 learned_knowledge = load_learned_knowledge()
 
 with st.sidebar:
@@ -416,6 +419,28 @@ with st.sidebar:
     st.caption(f"JEV decision layer: {'ready' if typesafe_key else 'off'}")
     st.caption(f"Google OAuth bootstrap: {'ready' if google_oauth_ready else 'off'}")
     st.caption(f"Browser timezone: {client_timezone}")
+    prior_component = st.session_state.get('itachi_location', {})
+    prior_location = (
+        prior_component.get('location', {'status': 'idle'})
+        if isinstance(prior_component, dict)
+        else {'status': 'idle'}
+    )
+    location_result = location_component(
+        data={'location': prior_location},
+        default={'location': prior_location},
+        key='itachi_location',
+        on_location_change=lambda: None,
+    )
+    location_value = getattr(location_result, 'location', None)
+    if isinstance(location_value, dict):
+        precise_location = location_value.get('status') == 'granted'
+        client_latitude = location_value.get('latitude') if precise_location else None
+        client_longitude = location_value.get('longitude') if precise_location else None
+        client_accuracy = location_value.get('accuracy') if precise_location else None
+    if precise_location:
+        st.caption('Precise location: enabled for this browser session only')
+    else:
+        st.caption('Precise location: off — timezone fallback active')
     if st.session_state.memory_error:
         st.caption(f"Memory status: {st.session_state.memory_error}")
     if st.session_state.jev_error:
@@ -423,10 +448,16 @@ with st.sidebar:
     if hf_token and st.session_state.get('hf_discovery_error'):
         st.caption('Hugging Face model discovery is unavailable; manually configured models may still work.')
     st.header('Tools')
-    autonomous = st.checkbox('Autonomous research', value=True,
-                             help='Itachi plans up to three read-only tool steps before answering.')
-    use_web = st.checkbox('Allow internet searches for this question', value=False,
-                          help='Uses Tavily with an authorized model, or public Wikipedia references when no model is connected.')
+    autonomous = st.checkbox('Autonomous reasoning & research', value=True,
+                             help='Itachi chooses bounded read-only tools, verifies evidence, and can critique deep answers.')
+    answer_depth = st.selectbox(
+        'Response depth',
+        ['Auto', 'Quick', 'Deep'],
+        index=0,
+        help='Auto adapts to the question. Quick minimizes model/tool calls. Deep adds broader research and a critique/revision pass.'
+    )
+    use_web = st.checkbox('Allow internet research', value=True,
+                          help='JEV and the planner decide when fresh public information is useful. Personal data and secrets are excluded from search queries.')
     use_memory = st.checkbox('Use Nemotron semantic memory', value=memory_enabled, disabled=not memory_enabled,
                              help='Embeds this session remotely with NVIDIA Nemotron-3-Embed-1B. Memory stays in this Streamlit session.')
     route_name = st.selectbox('Answer model', ['Automatic'] + [route.name for route in configured])
@@ -473,6 +504,12 @@ with st.sidebar:
                 except ValueError as error:
                     st.info(str(error))
 
+client_context = client_context_text(
+    client_timezone,
+    client_locale,
+    precise_location=precise_location,
+)
+
 for index, item in enumerate(st.session_state.history):
     with st.chat_message(item['role']):
         st.write(item['content'])
@@ -493,10 +530,25 @@ if prompt:
     with st.chat_message('user'):
         st.write(prompt)
 
-    utility_reply = local_clock_reply(prompt, client_timezone, client_locale)
+    utility_reply = local_clock_reply(
+        prompt,
+        client_timezone,
+        client_locale,
+        client_latitude,
+        client_longitude,
+        client_accuracy,
+    )
     if utility_reply is None:
         try:
-            utility_reply = asyncio.run(weather_reply(prompt, client_timezone, client_locale))
+            utility_reply = asyncio.run(
+                weather_reply(
+                    prompt,
+                    client_timezone,
+                    client_locale,
+                    client_latitude,
+                    client_longitude,
+                )
+            )
         except Exception as error:
             if any(word in prompt.lower() for word in ('weather', 'forecast', 'temperature')):
                 utility_reply = (
@@ -595,6 +647,7 @@ if prompt:
                             ordered,
                             setting('ITACHI_TAVILY_KEY'),
                             jev_web,
+                            depth=answer_depth.lower(),
                         )
                     )
                     used = next((r.name for r in ordered if f'[Answered by {r.name}]' in reply), ordered[0].name)
