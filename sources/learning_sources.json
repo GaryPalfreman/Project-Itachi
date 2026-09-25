@@ -1,0 +1,32 @@
+{
+  "topics": [
+    "agentic AI software architecture",
+    "retrieval augmented generation vector embeddings",
+    "software engineering autonomous agents",
+    "process engineering maintenance reliability",
+    "Streamlit FastAPI Python AI applications"
+  ],
+  "repositories": [
+    "fastapi/fastapi",
+    "streamlit/streamlit",
+    "huggingface/transformers",
+    "lancedb/lancedb",
+    "qdrant/qdrant-client",
+    "supabase/supabase",
+    "ollama/ollama"
+  ],
+  "feeds": [
+    {
+      "name": "GitHub Changelog",
+      "url": "https://github.blog/changelog/feed/"
+    },
+    {
+      "name": "Streamlit Blog",
+      "url": "https://blog.streamlit.io/rss/"
+    },
+    {
+      "name": "Hugging Face Blog",
+      "url": "https://huggingface.co/blog/feed.xml"
+    }
+  ]
+}

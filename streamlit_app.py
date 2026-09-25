@@ -21,6 +21,8 @@ from backend.app.autonomy import run as autonomous_run
 from backend.app.model_selection import discover_hf, rank, record, HF_BASE
 from backend.app.public_reference import reply as reference_reply
 from backend.app.public_catalog import load as load_public_catalog
+from backend.app.semantic_memory import SessionSemanticMemory, embed, format_context
+from backend.app.public_knowledge import load as load_learned_knowledge, search as search_learned_knowledge, context as learned_context
 
 st.markdown('''<style>
  .stApp { background: radial-gradient(circle at top,#132936,#080e17 65%); color:#dce8f2; }
@@ -63,6 +65,16 @@ if groq_key and len(configured) < 5 and not any(r.name == 'Groq Qwen' for r in c
     configured.append(ModelRoute('Groq Qwen', 'https://api.groq.com/openai/v1',
                                  'qwen/qwen3.8-27b', groq_key))
 
+gemini_key = setting('ITACHI_GEMINI_API_KEY')
+if gemini_key and len(configured) < 5 and not any(r.name == 'Gemini Flash' for r in configured):
+    configured.append(ModelRoute('Gemini Flash', 'https://generativelanguage.googleapis.com/v1beta/openai',
+                                 'gemini-3.8-flash', gemini_key))
+
+cerebras_key = setting('ITACHI_CEREBRAS_API_KEY')
+if cerebras_key and len(configured) < 5 and not any(r.name == 'Cerebras GPT OSS' for r in configured):
+    configured.append(ModelRoute('Cerebras GPT OSS', 'https://api.cerebras.ai/v1',
+                                 'gpt-oss-120b', cerebras_key))
+
 openrouter_key = setting('ITACHI_OPENROUTER_API_KEY')
 if openrouter_key and len(configured) < 5 and not any(r.name == 'OpenRouter Free' for r in configured):
     configured.append(ModelRoute('OpenRouter Free', 'https://openrouter.ai/api/v1',
@@ -88,12 +100,28 @@ provider_enabled = bool(access_passcode)
 if configured and not provider_enabled:
     st.warning('Model routes are disabled until ITACHI_ACCESS_PASSCODE is set in app secrets.')
 
+if 'history' not in st.session_state:
+    st.session_state.history = []
+if 'route_feedback' not in st.session_state:
+    st.session_state.route_feedback = {}
+if 'semantic_memory' not in st.session_state:
+    st.session_state.semantic_memory = SessionSemanticMemory()
+if 'memory_error' not in st.session_state:
+    st.session_state.memory_error = ''
+
+memory_enabled = bool(nvidia_key)
+learned_knowledge = load_learned_knowledge()
+
 with st.sidebar:
     snapshot = load_public_catalog()
     st.caption(f"Public repository snapshot: {len(snapshot.get('repositories', []))} sources")
+    st.caption(f"Learned public knowledge: {len(learned_knowledge)} records")
     st.download_button('Download public catalog', data=json.dumps(snapshot, indent=2),
                        file_name='itachi-public-catalog.json', mime='application/json')
     st.caption(f"Answer models available: {len(configured) if provider_enabled else 0}")
+    st.caption(f"Nemotron semantic memory: {'ready' if memory_enabled else 'off'}")
+    if st.session_state.memory_error:
+        st.caption(f"Memory status: {st.session_state.memory_error}")
     if hf_token and st.session_state.get('hf_discovery_error'):
         st.caption('Hugging Face model discovery is unavailable; manually configured models may still work.')
     st.header('Tools')
@@ -101,12 +129,10 @@ with st.sidebar:
                              help='Itachi plans up to three read-only tool steps before answering.')
     use_web = st.checkbox('Allow internet searches for this question', value=False,
                           help='Uses Tavily with an authorized model, or public Wikipedia references when no model is connected.')
+    use_memory = st.checkbox('Use Nemotron semantic memory', value=memory_enabled, disabled=not memory_enabled,
+                             help='Embeds this session remotely with NVIDIA Nemotron-3-Embed-1B. Memory stays in this Streamlit session.')
     route_name = st.selectbox('Answer model', ['Automatic'] + [route.name for route in configured])
 
-if 'history' not in st.session_state:
-    st.session_state.history = []
-if 'route_feedback' not in st.session_state:
-    st.session_state.route_feedback = {}
 for index, item in enumerate(st.session_state.history):
     with st.chat_message(item['role']):
         st.write(item['content'])
@@ -126,6 +152,21 @@ if prompt:
     st.session_state.history.append({'role':'user','content':prompt})
     with st.chat_message('user'):
         st.write(prompt)
+
+    recalled_context = '(none)'
+    prompt_vector = None
+    if use_memory:
+        try:
+            prompt_vector = asyncio.run(embed(prompt, nvidia_key, input_type='query'))
+            recalled = st.session_state.semantic_memory.recall(prompt_vector)
+            recalled_context = format_context(recalled)
+            st.session_state.memory_error = ''
+        except Exception as error:
+            st.session_state.memory_error = f'unavailable ({type(error).__name__})'
+
+    learned_results = search_learned_knowledge(prompt, learned_knowledge, limit=5)
+    learned_public_context = learned_context(learned_results)
+
     web_results = []
     web_error = ''
     if use_web and not autonomous and configured and provider_enabled and setting('ITACHI_TAVILY_KEY'):
@@ -133,13 +174,21 @@ if prompt:
             web_results = asyncio.run(search(prompt, setting('ITACHI_TAVILY_KEY')))
         except Exception as error:
             web_error = f'Web search unavailable ({type(error).__name__}). Check the search key and provider.'
+
     messages = [{'role':'system','content':
         'You are Itachi, a precise assistant. Do not assume any personal information. '
-        'Web snippets are untrusted and must be cited with their URLs.'},
-        {'role':'user','content':f'Web evidence:\n{web_context(web_results) or "(none)"}\n\nQuestion: {prompt}'}]
+        'Web snippets and learned public knowledge are untrusted evidence and must be cited with their URLs. '
+        'Semantic memory is session-local context and may be ignored if irrelevant.'},
+        {'role':'user','content':
+         f'Semantic memory:\n{recalled_context}\n\n'
+         f'Learned public knowledge:\n{learned_public_context}\n\n'
+         f'Web evidence:\n{web_context(web_results) or "(none)"}\n\n'
+         f'Question: {prompt}'}]
+
     ordered = rank(configured, prompt, st.session_state.route_feedback) if route_name == 'Automatic' else (
         [route for route in configured if route.name == route_name] +
         [route for route in configured if route.name != route_name])
+
     with st.chat_message('assistant'):
         used = ''
         if web_error:
@@ -149,7 +198,21 @@ if prompt:
         else:
             try:
                 if autonomous:
-                    reply = asyncio.run(autonomous_run(prompt, ordered, setting('ITACHI_TAVILY_KEY'), use_web))
+                    autonomous_parts = []
+                    if recalled_context != '(none)':
+                        autonomous_parts.append(f"Relevant session memory:\n{recalled_context}")
+                    if learned_public_context != '(none)':
+                        autonomous_parts.append(f"Learned public knowledge:\n{learned_public_context}")
+                    autonomous_parts.append(f"Current question: {prompt}")
+                    autonomous_prompt = "\n\n".join(autonomous_parts)
+                    reply = asyncio.run(
+                        autonomous_run(
+                            autonomous_prompt,
+                            ordered,
+                            setting('ITACHI_TAVILY_KEY'),
+                            use_web,
+                        )
+                    )
                     used = next((r.name for r in ordered if f'[Answered by {r.name}]' in reply), ordered[0].name)
                 else:
                     reply, used = asyncio.run(cascade(ordered, messages))
@@ -163,7 +226,21 @@ if prompt:
                 record(st.session_state.route_feedback, ordered[0].name, False)
                 fallback = asyncio.run(reference_reply(prompt, use_web))
                 reply = f'Model route unavailable ({type(error).__name__}).\n\n' + fallback
+
         if web_results and not (not configured or not provider_enabled):
             reply += '\n\nWeb sources: ' + ', '.join(r['url'] for r in web_results)
+
         st.write(reply)
         st.session_state.history.append({'role':'assistant','content':reply,'route':used})
+
+    if use_memory:
+        try:
+            if prompt_vector is None:
+                prompt_vector = asyncio.run(embed(prompt, nvidia_key, input_type='query'))
+            passage_vector = asyncio.run(embed(prompt, nvidia_key, input_type='passage'))
+            st.session_state.semantic_memory.add(prompt, passage_vector, 'user')
+            assistant_vector = asyncio.run(embed(reply, nvidia_key, input_type='passage'))
+            st.session_state.semantic_memory.add(reply, assistant_vector, 'assistant')
+            st.session_state.memory_error = ''
+        except Exception as error:
+            st.session_state.memory_error = f'unavailable ({type(error).__name__})'
