@@ -217,6 +217,78 @@ def deterministic_actions(prompt: str, allow_web: bool, allow_rapidapi: bool,
     return actions
 
 
+def is_control_payload(value: object) -> bool:
+    """Return True when a supposed user answer is actually planner/tool control data."""
+    if not isinstance(value, str):
+        return False
+    text = value.strip()
+    if not text:
+        return False
+    cleaned = text
+    fence = chr(96) * 3
+    if cleaned.startswith(fence):
+        lines = cleaned.splitlines()
+        if len(lines) >= 2:
+            cleaned = '\n'.join(lines[1:])
+            if cleaned.rstrip().endswith(fence):
+                cleaned = cleaned.rstrip()[:-3].rstrip()
+    try:
+        payload = json.loads(cleaned)
+    except (ValueError, TypeError):
+        lowered = cleaned.lower()
+        return (
+            ('"tool"' in lowered and '"arguments"' in lowered)
+            or '"tool_calls"' in lowered
+            or ('"actions"' in lowered and '"input"' in lowered)
+            or lowered.startswith('tool_call:')
+        )
+
+    def control(obj: object) -> bool:
+        if isinstance(obj, dict):
+            keys = {str(key).lower() for key in obj}
+            if 'tool_calls' in keys or 'actions' in keys:
+                return True
+            if 'tool' in keys and ('arguments' in keys or 'input' in keys):
+                return True
+            if 'function' in keys and ('arguments' in keys or 'name' in keys):
+                return True
+            if 'arguments' in keys and 'name' in keys and len(keys) <= 5:
+                return True
+            return any(control(item) for item in obj.values())
+        if isinstance(obj, list):
+            return any(control(item) for item in obj)
+        return False
+
+    return control(payload)
+
+
+async def _retry_prose_answer(prompt: str, evidence: str, views_text: str,
+                              routes: list, current_date: str) -> tuple[str, str]:
+    """Retry once when a model emits internal tool/planner syntax as the final answer."""
+    response, used = await cascade(routes, [
+        {
+            'role':'system',
+            'content':(
+                ANSWER
+                + f' Current date: {current_date}. '
+                  'All research and tool execution is already complete. Do not request, call, '
+                  'describe, or output any tools/functions/actions. Never output planner JSON or '
+                  'tool-call JSON. Return the final user-facing prose answer only.'
+            ),
+        },
+        {
+            'role':'user',
+            'content':(
+                f'Request:\n{prompt}\n\nEvidence:\n{evidence}\n\n'
+                f'Independent reasoning views:\n{views_text or "(none)"}'
+            ),
+        },
+    ])
+    if is_control_payload(response):
+        raise RuntimeError('Model returned internal tool-control payload instead of a final answer')
+    return response, used
+
+
 def actions_from_plan(raw: str, allow_web: bool, limit: int = 3,
                       allow_rapidapi: bool = False) -> list[dict[str, str]]:
     try:
@@ -250,6 +322,14 @@ async def run(prompt: str, routes: list, web_key: str = '', allow_web: bool = Fa
             {'role':'system', 'content':ANSWER + f' Current date: {current_date}. Give a concise direct answer.'},
             {'role':'user', 'content':prompt},
         ])
+        if is_control_payload(response):
+            response, used = await _retry_prose_answer(
+                prompt,
+                '(no tool evidence needed)',
+                '',
+                routes,
+                current_date,
+            )
         return (response, used) if return_route else response
 
     action_limit = {'quick': 1, 'standard': 4, 'deep': 5}[resolved_depth]
@@ -381,6 +461,15 @@ async def run(prompt: str, routes: list, web_key: str = '', allow_web: bool = Fa
             f'Independent reasoning views:\n{views_text or "(none)"}'
         )}])
 
+    if is_control_payload(response):
+        response, used = await _retry_prose_answer(
+            prompt,
+            evidence,
+            views_text,
+            routes,
+            current_date,
+        )
+
     if resolved_depth == 'deep':
         critique, _ = await cascade(routes, [
             {'role':'system', 'content':CRITIC + f' Current date: {current_date}.'},
@@ -396,6 +485,14 @@ async def run(prompt: str, routes: list, web_key: str = '', allow_web: bool = Fa
                 f'Draft:\n{response}\n\nVerifier notes:\n{critique}'
             )},
         ])
+        if is_control_payload(response):
+            response, used = await _retry_prose_answer(
+                prompt,
+                evidence,
+                views_text,
+                routes,
+                current_date,
+            )
     # Provenance is retained internally in evidence/sources but is intentionally not
     # rendered in normal user-facing replies. Sources can be exposed only on explicit request.
     if access_requests:
