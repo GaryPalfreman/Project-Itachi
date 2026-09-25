@@ -22,6 +22,10 @@ class JevTests(unittest.IsolatedAsyncioTestCase):
     def test_parse_fails_closed_to_safe_defaults(self):
         self.assertEqual(parse_decision({}), JevDecision())
 
+    def test_parse_malformed_route_choice_falls_back(self):
+        value = parse_decision({"answers": {"route": {"choice": {"unexpected": "shape"}}}})
+        self.assertEqual(value.task, "general")
+
     async def test_request_uses_systemone_contract_and_server_key(self):
         response = httpx.Response(
             200,
