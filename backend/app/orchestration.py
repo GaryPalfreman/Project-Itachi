@@ -49,13 +49,10 @@ async def answer(prompt: str, route: str = 'reasoning', use_web: bool = False) -
     else:
         if settings.model_routes_json:
             output, used = await cascade(parse(settings.model_routes_json), messages)
-            output = f'[Answered by {used}]\n\n' + output
         else:
             output, used = await with_fallback(
                 (settings.reasoning_url, settings.reasoning_model, settings.reasoning_key),
                 (settings.fallback_url, settings.fallback_model, settings.fallback_key), messages)
-            if used == 'fallback':
-                output = '[Answered by fallback model]\n\n' + output
     if web_results:
         output += '\n\nWeb sources: ' + ', '.join(r['url'] for r in web_results)
     return output, notes
