@@ -1,6 +1,16 @@
 name: Recover Itachi public knowledge
 on:
   workflow_dispatch:
+    inputs:
+      source:
+        description: Recovery source
+        required: true
+        default: supabase
+        type: choice
+        options:
+          - supabase
+          - google-drive
+          - mega
 permissions:
   contents: write
 concurrency:
@@ -16,16 +26,34 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install 'httpx>=0.27,<1'
       - name: Recover from Supabase
+        if: ${{ github.event.inputs.source == 'supabase' }}
         env:
           ITACHI_SUPABASE_URL: ${{ secrets.ITACHI_SUPABASE_URL }}
           ITACHI_SUPABASE_SERVER_KEY: ${{ secrets.ITACHI_SUPABASE_SERVER_KEY }}
         run: python -m scripts.recover_supabase_knowledge
+      - name: Recover from Google Drive
+        if: ${{ github.event.inputs.source == 'google-drive' }}
+        env:
+          ITACHI_GOOGLE_CLIENT_ID: ${{ secrets.ITACHI_GOOGLE_CLIENT_ID }}
+          ITACHI_GOOGLE_CLIENT_SECRET: ${{ secrets.ITACHI_GOOGLE_CLIENT_SECRET }}
+          ITACHI_GOOGLE_REFRESH_TOKEN: ${{ secrets.ITACHI_GOOGLE_REFRESH_TOKEN }}
+          ITACHI_GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.ITACHI_GOOGLE_DRIVE_FOLDER_ID }}
+        run: python -m scripts.recover_google_drive
+      - name: Recover from MEGA
+        if: ${{ github.event.inputs.source == 'mega' }}
+        env:
+          ITACHI_MEGA_EMAIL: ${{ secrets.ITACHI_MEGA_EMAIL }}
+          ITACHI_MEGA_PASSWORD: ${{ secrets.ITACHI_MEGA_PASSWORD }}
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq rclone
+          bash scripts/recover_mega_rclone.sh
       - name: Commit recovered snapshot
         run: |
-          git add data/knowledge/public_knowledge.jsonl
+          git add data/public_catalog.json data/knowledge
           if ! git diff --cached --quiet; then
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git commit -m 'Recover Itachi public knowledge from Supabase'
+            git commit -m "Recover Itachi public knowledge from ${{ github.event.inputs.source }}"
             git push
           fi
