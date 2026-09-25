@@ -146,17 +146,70 @@ def calculate(expression: str) -> float | int:
 
 
 def _clean_finance_query(text: str) -> str:
+    """Extract the company/ticker even when the question has trailing clauses."""
     value = text.strip().strip(' ?.')
+
+    ticker = re.search(r'\(([A-Z][A-Z0-9.\-]{0,9})\)', value)
+    if ticker:
+        return ticker.group(1)
+
     patterns = (
-        r"(?i)^what(?:\s+is|'s)?\s+(.+?)\s+(?:stock\s+)?trading(?:\s+at)?(?:\s+right\s+now)?$",
-        r"(?i)^(.+?)\s+(?:stock|share)\s+price(?:\s+right\s+now)?$",
-        r"(?i)^price\s+of\s+(.+?)(?:\s+stock|\s+shares)?$",
+        r"(?i)^(?:what(?:\s+is|'s)?\s+)?(.+?)\s+(?:stock\s+)?trading\b",
+        r"(?i)^(.+?)\s+(?:stock|share)\s+price\b",
+        r"(?i)^price\s+of\s+(.+?)(?:\s+stock|\s+shares)?(?:\s|$)",
+        r"(?i)^(?:quote|price)\s+(?:for\s+)?(.+?)(?:\s+(?:right\s+now|today))?(?:\s|$)",
     )
     for pattern in patterns:
-        match = re.match(pattern, value)
+        match = re.search(pattern, value)
         if match:
-            return match.group(1).strip()
+            candidate = match.group(1).strip(' ,:-')
+            candidate = re.split(
+                r"(?i)\s+(?:and|with)\s+(?:what|when|its|the)\b",
+                candidate,
+                maxsplit=1,
+            )[0].strip()
+            if candidate:
+                return candidate[:100]
     return value[:100]
+
+
+def _direct_market_answer(findings: list[str]) -> str:
+    """Format verified live market evidence without asking a general model to reinterpret it."""
+    for finding in findings:
+        if not isinstance(finding, str):
+            continue
+        match = re.search(
+            r"Live market data for\s+(?P<symbol>[^\s(]+)"
+            r"(?:\s+\((?P<meta>[^)]*)\))?:\s+"
+            r"price=(?P<price>[^,]+),\s+"
+            r"open=(?P<open>[^,]+),\s+"
+            r"high=(?P<high>[^,]+),\s+"
+            r"low=(?P<low>[^,]+),\s+"
+            r"volume=(?P<volume>[^,]+),\s+"
+            r"latest_trading_day=(?P<day>[^,]+),\s+"
+            r"change=(?P<change>[^\s]+)\s+\((?P<pct>[^)]+)\)",
+            finding,
+        )
+        if not match:
+            continue
+
+        data = match.groupdict()
+        meta_parts = [part.strip() for part in (data.get('meta') or '').split('|') if part.strip()]
+        name = meta_parts[0] if meta_parts else ''
+        currency = meta_parts[2] if len(meta_parts) >= 3 else ''
+        symbol = data['symbol']
+        price = data['price']
+        day = data['day']
+        change = data['change']
+        pct = data['pct']
+
+        identity = f"{name} ({symbol})" if name else symbol
+        price_text = f"{currency} {price}" if currency and currency.lower() != 'n/a' else price
+        answer = f"{identity}: latest available price {price_text}. Latest trading day: {day}."
+        if change.lower() != 'n/a' or pct.lower() != 'n/a':
+            answer += f" Change: {change} ({pct})."
+        return answer
+    return ''
 
 
 def _clean_city_query(text: str) -> str:
@@ -436,6 +489,19 @@ async def run(prompt: str, routes: list, web_key: str = '', allow_web: bool = Fa
         findings.extend(local_findings)
         sources.extend(local_sources)
         access_requests.extend(local_access)
+
+    # For a single live-market request, a verified specialist quote is already the answer.
+    # Returning it directly prevents a general synthesis model from incorrectly claiming
+    # that real-time financial data is unavailable.
+    finance_actions = [action for action in planned_actions if action.get('tool') == 'rapid_finance']
+    non_support_actions = [
+        action for action in planned_actions
+        if action.get('tool') not in {'rapid_finance', 'web_search'}
+    ]
+    if len(finance_actions) == 1 and not non_support_actions and resolved_depth != 'deep':
+        direct_market = _direct_market_answer(findings)
+        if direct_market:
+            return (direct_market, 'specialist') if return_route else direct_market
 
     evidence_cap = {'quick': 8000, 'standard': 14000, 'deep': 22000}[resolved_depth]
     evidence_parts = []
