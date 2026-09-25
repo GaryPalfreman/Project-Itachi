@@ -55,6 +55,26 @@ async def _get_json(url: str, key: str, host: str, params: dict | None = None) -
         return value
 
 
+def _provider_error(payload: dict) -> str:
+    """Extract common upstream error/rate-limit messages without exposing provider branding."""
+    for key in ('Error Message', 'Information', 'Note', 'message', 'error'):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        if isinstance(value, dict):
+            text = value.get('message') or value.get('description')
+            if isinstance(text, str) and text.strip():
+                return text.strip()
+    return ''
+
+
+def _looks_like_ticker(query: str) -> bool:
+    value = query.strip()
+    return bool(value) and len(value) <= 10 and value.upper() == value and all(
+        char.isalnum() or char in '.-' for char in value
+    )
+
+
 async def finance_lookup(query: str, key: str) -> str:
     """Resolve a stock/ETF/company query and return a compact live quote."""
     query = str(query or "").strip()[:80]
@@ -65,25 +85,41 @@ async def finance_lookup(query: str, key: str) -> str:
     if isinstance(cached, str):
         return cached
 
-    search_payload = await _get_json(
-        f"https://{ALPHA_HOST}/query",
-        key,
-        ALPHA_HOST,
-        {"function": "SYMBOL_SEARCH", "keywords": query},
-    )
-    matches = search_payload.get("bestMatches")
     symbol = query.upper()
     match_summary = ""
-    if isinstance(matches, list) and matches:
-        best = matches[0] if isinstance(matches[0], dict) else {}
-        symbol = str(best.get("1. symbol") or symbol)
-        match_summary = " | ".join(
-            part for part in (
-                str(best.get("2. name") or ""),
-                str(best.get("4. region") or ""),
-                str(best.get("8. currency") or ""),
-            ) if part
-        )
+
+    if not _looks_like_ticker(query):
+        symbol_cache_key = f"finance-symbol:{query.casefold()}"
+        cached_symbol = _cache_get(symbol_cache_key)
+        if isinstance(cached_symbol, dict):
+            symbol = str(cached_symbol.get("symbol") or symbol)
+            match_summary = str(cached_symbol.get("summary") or "")
+        else:
+            search_payload = await _get_json(
+                f"https://{ALPHA_HOST}/query",
+                key,
+                ALPHA_HOST,
+                {"function": "SYMBOL_SEARCH", "keywords": query},
+            )
+            provider_error = _provider_error(search_payload)
+            matches = search_payload.get("bestMatches")
+            if provider_error and not isinstance(matches, list):
+                raise RuntimeError("Market symbol lookup temporarily unavailable")
+            if isinstance(matches, list) and matches:
+                best = matches[0] if isinstance(matches[0], dict) else {}
+                symbol = str(best.get("1. symbol") or symbol)
+                match_summary = " | ".join(
+                    part for part in (
+                        str(best.get("2. name") or ""),
+                        str(best.get("4. region") or ""),
+                        str(best.get("8. currency") or ""),
+                    ) if part
+                )
+                _cache_put(
+                    symbol_cache_key,
+                    {"symbol": symbol, "summary": match_summary},
+                    86400,
+                )
 
     quote_payload = await _get_json(
         f"https://{ALPHA_HOST}/query",
@@ -91,25 +127,26 @@ async def finance_lookup(query: str, key: str) -> str:
         ALPHA_HOST,
         {"function": "GLOBAL_QUOTE", "symbol": symbol},
     )
+    provider_error = _provider_error(quote_payload)
     quote_data = quote_payload.get("Global Quote")
+    if provider_error and not isinstance(quote_data, dict):
+        raise RuntimeError("Live market quote temporarily unavailable")
     if not isinstance(quote_data, dict) or not quote_data:
-        output = f"Market match: {symbol}"
-        if match_summary:
-            output += f" | {match_summary}"
-    else:
-        output = (
-            f"Live market data for {symbol}"
-            + (f" ({match_summary})" if match_summary else "")
-            + ": "
-            f"price={quote_data.get('05. price', 'n/a')}, "
-            f"open={quote_data.get('02. open', 'n/a')}, "
-            f"high={quote_data.get('03. high', 'n/a')}, "
-            f"low={quote_data.get('04. low', 'n/a')}, "
-            f"volume={quote_data.get('06. volume', 'n/a')}, "
-            f"latest_trading_day={quote_data.get('07. latest trading day', 'n/a')}, "
-            f"change={quote_data.get('09. change', 'n/a')} "
-            f"({quote_data.get('10. change percent', 'n/a')})."
-        )
+        raise RuntimeError("Live market quote unavailable")
+
+    output = (
+        f"Live market data for {symbol}"
+        + (f" ({match_summary})" if match_summary else "")
+        + ": "
+        f"price={quote_data.get('05. price', 'n/a')}, "
+        f"open={quote_data.get('02. open', 'n/a')}, "
+        f"high={quote_data.get('03. high', 'n/a')}, "
+        f"low={quote_data.get('04. low', 'n/a')}, "
+        f"volume={quote_data.get('06. volume', 'n/a')}, "
+        f"latest_trading_day={quote_data.get('07. latest trading day', 'n/a')}, "
+        f"change={quote_data.get('09. change', 'n/a')} "
+        f"({quote_data.get('10. change percent', 'n/a')})."
+    )
     _cache_put(cache_key, output, 120)
     return output
 
