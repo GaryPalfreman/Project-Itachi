@@ -22,6 +22,30 @@ class RapidApiToolsTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("Alpha Vantage", result)
         self.assertNotIn("rapidapi.com", result)
 
+    async def test_ticker_query_skips_symbol_search(self):
+        quote = {"Global Quote": {"05. price": "500.00", "02. open": "490.00",
+                                  "03. high": "505.00", "04. low": "488.00",
+                                  "06. volume": "1234", "07. latest trading day": "2026-09-25",
+                                  "09. change": "10.00", "10. change percent": "2.04%"}}
+        with patch.object(
+            rapidapi_tools,
+            "_get_json",
+            new=AsyncMock(return_value=quote),
+        ) as get_json:
+            result = await rapidapi_tools.finance_lookup("MSFT", "key")
+        self.assertIn("MSFT", result)
+        self.assertEqual(get_json.await_count, 1)
+
+    async def test_finance_provider_information_is_failure_not_fake_quote(self):
+        payload = {"Information": "rate limit reached"}
+        with patch.object(
+            rapidapi_tools,
+            "_get_json",
+            new=AsyncMock(return_value=payload),
+        ):
+            with self.assertRaises(RuntimeError):
+                await rapidapi_tools.finance_lookup("MSFT", "key")
+
     async def test_city_lookup_formats_candidates(self):
         payload = {"data": [{"city": "Melbourne", "region": "Victoria", "country": "Australia",
                              "countryCode": "AU", "population": 5000000,
