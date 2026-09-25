@@ -6,7 +6,7 @@ import time
 import json
 import streamlit as st
 
-st.set_page_config(page_title='Itachi · Test Console', page_icon='◉', layout='centered')
+st.set_page_config(page_title='Itachi · Cognitive Node', page_icon='◉', layout='centered')
 
 def browser_context(name: str, default: str = '') -> str:
     try:
@@ -257,7 +257,7 @@ if access_passcode and st.session_state.get('authenticated', False) and google_o
 try:
     configured = parse(setting('ITACHI_MODEL_ROUTES_JSON'))
 except ValueError:
-    st.error('Invalid model routes configuration. Ask the app administrator to check the secret.')
+    st.error('Invalid reasoning-engine configuration. Ask the app administrator to check the secret.')
     st.stop()
 if not configured:
     for name, prefix in (('Reasoning', 'REASONING'), ('Fallback', 'FALLBACK')):
@@ -313,7 +313,7 @@ if hf_token:
 
 provider_enabled = bool(access_passcode)
 if configured and not provider_enabled:
-    st.warning('Model routes are disabled until ITACHI_ACCESS_PASSCODE is set in app secrets.')
+    st.warning('Itachi reasoning is locked until ITACHI_ACCESS_PASSCODE is set in app secrets.')
 
 if 'history' not in st.session_state:
     st.session_state.history = []
@@ -604,7 +604,7 @@ if prompt:
             except Exception as error:
                 record(st.session_state.route_feedback, ordered[0].name, False)
                 fallback = asyncio.run(reference_reply(prompt, use_web))
-                reply = f'Model route unavailable ({type(error).__name__}).\n\n' + fallback
+                reply = f'Itachi reasoning is temporarily unavailable ({type(error).__name__}).\n\n' + fallback
 
         if web_results and not (not configured or not provider_enabled):
             reply += '\n\nWeb sources: ' + ', '.join(r['url'] for r in web_results)
