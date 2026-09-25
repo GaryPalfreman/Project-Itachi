@@ -32,16 +32,28 @@ def _wants_sources(prompt: str) -> bool:
     ))
 
 
+def _requires_fresh(prompt: str) -> bool:
+    text = prompt.lower()
+    return any(marker in text for marker in (
+        'latest', 'current', 'today', 'tonight', 'this week', 'recent', 'news',
+        'most recent', 'winner', 'won ', 'champion', 'result', 'score', 'weather',
+        'price', 'trading at', 'right now', 'live quote', 'market close',
+        'trading day', 'president', 'prime minister', 'ceo', 'version', 'release',
+    ))
+
+
 async def reply(prompt: str, allow_web: bool) -> str:
     result = arithmetic(prompt)
     if result is not None:
         return 'Local calculation: ' + result
-    learned = search_learned(prompt, limit=4)
-    if learned:
-        return (
-            'Itachi learned public references:\n\n'
-            + learned_context(learned)
-        )
+    fresh = _requires_fresh(prompt)
+    if not fresh:
+        learned = search_learned(prompt, limit=4)
+        if learned:
+            return (
+                'Itachi learned public references:\n\n'
+                + learned_context(learned)
+            )
     if allow_web:
         if task_for(prompt) == 'code' or any(word in prompt.lower() for word in ('repository', 'repositories', 'github')):
             try:

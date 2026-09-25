@@ -315,14 +315,20 @@ export default function Home() {
     locale: "",
   });
   const transcriptRef = useRef<HTMLDivElement | null>(null);
+  const inFlightRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
     const locale = navigator.language || "";
     setBrowser((current) => ({ ...current, timezone, locale }));
 
-    fetch("/api/status")
-      .then((response) => response.json())
+    fetch("/api/status", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("status unavailable");
+        return response.json();
+      })
       .then((data) => {
         const required = Boolean(data.accessRequired);
         setAccessRequired(required);
@@ -330,9 +336,10 @@ export default function Home() {
         setStatusText(data.routesConfigured ? "Cognitive engine online" : "Reference mode");
       })
       .catch(() => {
-        setAccessRequired(false);
-        setUnlocked(true);
-        setStatusText("Interface online");
+        // Fail closed when the API cannot confirm whether preview access is protected.
+        setAccessRequired(true);
+        setUnlocked(false);
+        setStatusText("Cognitive API unavailable");
       });
 
     if (navigator.permissions && navigator.geolocation) {
@@ -367,9 +374,12 @@ export default function Home() {
         return;
       }
       window.speechSynthesis.cancel();
-      const clean = text
+      const spokenText = text.split(/\n\nSources?:/i)[0];
+      const clean = spokenText
         .replace(/https?:\/\/\S+/g, "")
-        .replace(/[*_#>|]/g, "")
+        .replace(/[`*_#>|]/g, "")
+        .replace(/\s{2,}/g, " ")
+        .trim()
         .slice(0, 3200);
       const utterance = new SpeechSynthesisUtterance(clean);
       const voices = window.speechSynthesis.getVoices();
@@ -416,7 +426,7 @@ export default function Home() {
   };
 
   const startListening = () => {
-    if (thinking) return;
+    if (thinking || inFlightRef.current || mode === "listening" || recognitionRef.current) return;
     requestLocation();
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) {
@@ -424,60 +434,90 @@ export default function Home() {
       return;
     }
     const recognition = new Recognition();
+    recognitionRef.current = recognition;
     recognition.lang = navigator.language || "en-AU";
     recognition.interimResults = false;
     recognition.continuous = false;
     recognition.onstart = () => setMode("listening");
-    recognition.onerror = () => setMode("idle");
-    recognition.onend = () => setMode((current) => (current === "listening" ? "idle" : current));
+    recognition.onerror = (event: any) => {
+      recognitionRef.current = null;
+      setMode("idle");
+      if (event?.error === "not-allowed" || event?.error === "service-not-allowed") {
+        setStatusText("Microphone permission was not granted");
+      } else if (event?.error && event.error !== "aborted") {
+        setStatusText("Speech recognition could not be completed");
+      }
+    };
+    recognition.onend = () => {
+      recognitionRef.current = null;
+      setMode((current) => (current === "listening" ? "idle" : current));
+    };
     recognition.onresult = (event: any) => {
       const text = String(event.results?.[0]?.[0]?.transcript || "").trim();
       if (text) setInput(text);
       setMode("idle");
     };
-    recognition.start();
+    try {
+      recognition.start();
+    } catch {
+      recognitionRef.current = null;
+      setMode("idle");
+      setStatusText("Speech recognition is already active");
+    }
   };
 
   const unlock = async (event: FormEvent) => {
     event.preventDefault();
     setUnlockError("");
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 10000);
     try {
       const response = await fetch("/api/unlock", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ passcode }),
+        credentials: "same-origin",
+        signal: controller.signal,
       });
-      if (!response.ok) throw new Error("Invalid access passcode");
+      if (!response.ok) throw new Error("access denied");
       setUnlocked(true);
+      setPasscode("");
       setStatusText("Cognitive engine online");
     } catch {
       setUnlockError("Access denied");
+    } finally {
+      window.clearTimeout(timeout);
     }
   };
 
   const submit = async (event?: FormEvent) => {
     event?.preventDefault();
     const prompt = input.trim();
-    if (!prompt || thinking || !unlocked) return;
+    if (!prompt || thinking || inFlightRef.current || !unlocked) return;
 
     const priorHistory = history.slice(-8);
-    setHistory((current) => [...current, { role: "user", content: prompt }]);
+    inFlightRef.current = true;
+    setHistory((current) => [...current, { role: "user" as const, content: prompt }].slice(-12));
     setInput("");
     setThinking(true);
     setMode("thinking");
     window.speechSynthesis?.cancel();
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const timeout = window.setTimeout(() => controller.abort(), 58000);
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt,
-          passcode,
           depth: "auto",
           history: priorHistory,
           browser,
         }),
+        credentials: "same-origin",
+        signal: controller.signal,
       });
       const payload = await response.json().catch(() => ({}));
       if (response.status === 401) {
@@ -486,20 +526,34 @@ export default function Home() {
         throw new Error("Access required");
       }
       if (!response.ok) {
-        throw new Error(String(payload.detail || "Itachi could not complete the request"));
+        throw new Error("Itachi could not complete the request. Please try again shortly.");
       }
       const answer = String(payload.answer || "").trim() || "I could not complete that request just now.";
-      setHistory((current) => [...current, { role: "assistant", content: answer }]);
-      setThinking(false);
+      setHistory((current) => [...current, { role: "assistant" as const, content: answer }].slice(-12));
       speak(answer);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "The request could not be completed.";
-      setHistory((current) => [...current, { role: "assistant", content: message }]);
-      setThinking(false);
+      const message = error instanceof DOMException && error.name === "AbortError"
+        ? "That request took too long. Please try again."
+        : error instanceof Error ? error.message : "The request could not be completed.";
+      setHistory((current) => [...current, { role: "assistant" as const, content: message }].slice(-12));
       setMode("idle");
+    } finally {
+      window.clearTimeout(timeout);
+      if (abortRef.current === controller) abortRef.current = null;
+      inFlightRef.current = false;
+      setThinking(false);
     }
   };
+
+  useEffect(() => () => {
+    abortRef.current?.abort();
+    try {
+      recognitionRef.current?.abort?.();
+    } catch {
+      // Browser speech recognition cleanup is best-effort.
+    }
+    recognitionRef.current = null;
+  }, []);
 
   if (accessRequired === null) {
     return (
@@ -579,11 +633,11 @@ export default function Home() {
                   submit();
                 }
               }}
-              disabled={thinking}
-              placeholder={thinking ? "Itachi is thinking…" : "Ask Itachi…"}
+              disabled={thinking || mode === "listening"}
+              placeholder={thinking ? "Itachi is thinking…" : mode === "listening" ? "Listening…" : "Ask Itachi…"}
               rows={2}
             />
-            <button type="submit" disabled={thinking || !input.trim()}>
+            <button type="submit" disabled={thinking || mode === "listening" || !input.trim()}>
               SEND
             </button>
           </form>
