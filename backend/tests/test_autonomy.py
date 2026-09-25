@@ -121,12 +121,12 @@ class AutonomousTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cascade.await_count, 4)
 
     async def test_automatic_search_and_answer_without_knowledge(self):
-        plan = '{"actions":[{"tool":"web_search","input":"saturn rings"}]}'
         results = [{'title':'Saturn', 'url':'https://example.org/saturn', 'excerpt':'Rings'}]
-        with patch.object(autonomy, 'cascade', new=AsyncMock(side_effect=[(plan, 'local'), ('Answer', 'local')])), \
+        with patch.object(autonomy, 'cascade', new=AsyncMock(return_value=('Answer', 'local'))), \
              patch.object(autonomy, 'search', new=AsyncMock(return_value=results)) as search:
             answer = await autonomy.run('Explain Saturn with current sources', [object()], 'key', True, depth='standard')
-        self.assertIn('https://example.org/saturn', answer)
+        self.assertEqual(answer, 'Answer')
+        self.assertNotIn('https://example.org/saturn', answer)
         search.assert_awaited_once()
         query, key = search.await_args.args
         self.assertIn('Explain Saturn with current sources', query)
