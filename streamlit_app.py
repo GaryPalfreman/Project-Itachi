@@ -67,7 +67,11 @@ if prompt:
     fallback = (setting('ITACHI_FALLBACK_URL'), setting('ITACHI_FALLBACK_MODEL'), setting('ITACHI_FALLBACK_KEY'))
     with st.chat_message('assistant'):
         if not primary[0] or not primary[1]:
-            reply = 'No hosted model is configured. The vault import is ready; set the model URL and name in app secrets.'
+            if matches:
+                reply = ('Search-only mode: no hosted model is configured. Matching note excerpts:\n\n' +
+                         '\n\n'.join(f"**{n['path']}**\n\n{n['excerpt'][:500]}" for n in matches))
+            else:
+                reply = 'No matching notes or hosted model. Import a Markdown ZIP or set a model URL and name in app secrets.'
         else:
             try:
                 reply, used = asyncio.run(with_fallback(primary, fallback, messages))
