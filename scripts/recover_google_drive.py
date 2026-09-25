@@ -6,7 +6,7 @@ from pathlib import Path
 
 import httpx
 
-from scripts.sync_google_drive import DRIVE_API, access_token, find_file
+from scripts.sync_google_drive import DRIVE_API, DEFAULT_FOLDER_ID, access_token, find_file
 
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = {
@@ -16,10 +16,11 @@ TARGETS = {
 }
 
 
-def download_file(client: httpx.Client, file_id: str, destination: Path) -> None:
+def download_file(client: httpx.Client, file_id: str, destination: Path, api_key: str = "") -> None:
     response = client.get(
         DRIVE_API + f"/files/{file_id}",
         params={"alt": "media"},
+        headers={"x-goog-api-key": api_key} if api_key else None,
     )
     response.raise_for_status()
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -30,7 +31,8 @@ if __name__ == "__main__":
     client_id = os.getenv("ITACHI_GOOGLE_CLIENT_ID", "").strip()
     client_secret = os.getenv("ITACHI_GOOGLE_CLIENT_SECRET", "").strip()
     refresh_token = os.getenv("ITACHI_GOOGLE_REFRESH_TOKEN", "").strip()
-    folder_id = os.getenv("ITACHI_GOOGLE_DRIVE_FOLDER_ID", "").strip()
+    folder_id = os.getenv("ITACHI_GOOGLE_DRIVE_FOLDER_ID", DEFAULT_FOLDER_ID).strip() or DEFAULT_FOLDER_ID
+    api_key = os.getenv("ITACHI_GOOGLE_API_KEY", "").strip()
 
     if not all((client_id, client_secret, refresh_token)):
         raise SystemExit("Google Drive recovery credentials are not configured")
@@ -40,10 +42,10 @@ if __name__ == "__main__":
     recovered = []
     with httpx.Client(timeout=30, headers=headers) as client:
         for name, destination in TARGETS.items():
-            file_id = find_file(client, name, folder_id)
+            file_id = find_file(client, name, folder_id, api_key)
             if not file_id:
                 continue
-            download_file(client, file_id, destination)
+            download_file(client, file_id, destination, api_key)
             recovered.append(name)
 
     if "public_knowledge.jsonl" not in recovered:

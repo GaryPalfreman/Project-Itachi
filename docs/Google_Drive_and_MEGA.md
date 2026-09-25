@@ -17,14 +17,23 @@ Then:
 5. Store the resulting OAuth refresh token in GitHub Actions secrets.
 6. Optionally create an `Itachi Recovery` folder in Drive and save its folder ID.
 
+Default recovery folder ID:
+
+```
+1fFi6bHUEgjU5cz9M9V8uYaNme1cGgX37
+```
+
 Required repository secrets:
 
 ```
+ITACHI_GOOGLE_API_KEY
 ITACHI_GOOGLE_CLIENT_ID
 ITACHI_GOOGLE_CLIENT_SECRET
 ITACHI_GOOGLE_REFRESH_TOKEN
 ITACHI_GOOGLE_DRIVE_FOLDER_ID
 ```
+
+The Google API key is sent only in the `x-goog-api-key` request header. It is never written to a URL, log message, source file, or browser bundle. The API key identifies the Google Cloud project but does not replace OAuth authorization for Drive writes.
 
 The hourly workflow uploads:
 
