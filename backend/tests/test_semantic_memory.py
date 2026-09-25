@@ -24,6 +24,17 @@ class SemanticMemoryTests(unittest.TestCase):
         self.assertEqual([item.text for item, _ in matches],
                          ["boiler pressure", "pump vibration"])
 
+    def test_fresh_query_excludes_volatile_memory(self):
+        memory = SessionSemanticMemory()
+        memory.add("MSFT was 400 yesterday", [1.0, 0.0], "assistant", volatile=True)
+        memory.add("Microsoft develops software", [0.9, 0.1], "assistant", volatile=False)
+        matches = memory.recall(
+            [1.0, 0.0],
+            min_similarity=0.5,
+            fresh_query=True,
+        )
+        self.assertEqual([item.text for item, _ in matches], ["Microsoft develops software"])
+
     def test_memory_is_bounded(self):
         memory = SessionSemanticMemory(max_items=2)
         memory.add("one", [1.0, 0.0])
