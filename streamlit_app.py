@@ -573,26 +573,47 @@ if prompt:
 
     jev_task = ''
     jev_web = bool(use_web)
-    if typesafe_key:
-        try:
-            jev_decision = asyncio.run(jev_evaluate_prompt(prompt, typesafe_key))
-            jev_task = jev_decision.task
-            st.session_state.jev_error = ''
-        except Exception as error:
-            st.session_state.jev_error = f'unavailable ({type(error).__name__}); using built-in routing'
-
     recalled_context = '(none)'
     prompt_vector = None
-    if use_memory:
-        try:
-            prompt_vector = asyncio.run(embed(prompt, nvidia_key, input_type='query'))
-            recalled = st.session_state.semantic_memory.recall(prompt_vector)
-            recalled_context = format_context(recalled)
-            st.session_state.memory_error = ''
-        except Exception as error:
-            st.session_state.memory_error = f'unavailable ({type(error).__name__})'
+    fresh_request = requires_fresh_web(prompt)
 
-    learned_results = search_learned_knowledge(prompt, learned_knowledge, limit=5)
+    async def preflight_context():
+        async def decision_work():
+            if not typesafe_key:
+                return '', ''
+            try:
+                decision = await jev_evaluate_prompt(prompt, typesafe_key)
+                return decision.task, ''
+            except Exception as error:
+                return '', f'unavailable ({type(error).__name__}); using built-in routing'
+
+        async def memory_work():
+            if not use_memory:
+                return '(none)', None, ''
+            try:
+                vector = await embed(prompt, nvidia_key, input_type='query')
+                recalled = st.session_state.semantic_memory.recall(
+                    vector,
+                    fresh_query=fresh_request,
+                )
+                return format_context(recalled), vector, ''
+            except Exception as error:
+                return '(none)', None, f'unavailable ({type(error).__name__})'
+
+        return await asyncio.gather(decision_work(), memory_work())
+
+    jev_result, memory_result = asyncio.run(preflight_context())
+    jev_task, jev_error = jev_result
+    recalled_context, prompt_vector, memory_error = memory_result
+    st.session_state.jev_error = jev_error
+    st.session_state.memory_error = memory_error
+
+    learned_results = search_learned_knowledge(
+        prompt,
+        learned_knowledge,
+        limit=5,
+        fresh=fresh_request,
+    )
     learned_public_context = learned_context(learned_results)
 
     ordered = rank(
@@ -656,9 +677,19 @@ if prompt:
             if prompt_vector is None:
                 prompt_vector = asyncio.run(embed(prompt, nvidia_key, input_type='query'))
             passage_vector = asyncio.run(embed(prompt, nvidia_key, input_type='passage'))
-            st.session_state.semantic_memory.add(prompt, passage_vector, 'user')
+            st.session_state.semantic_memory.add(
+                prompt,
+                passage_vector,
+                'user',
+                volatile=fresh_request,
+            )
             assistant_vector = asyncio.run(embed(reply, nvidia_key, input_type='passage'))
-            st.session_state.semantic_memory.add(reply, assistant_vector, 'assistant')
+            st.session_state.semantic_memory.add(
+                reply,
+                assistant_vector,
+                'assistant',
+                volatile=fresh_request,
+            )
             st.session_state.memory_error = ''
         except Exception as error:
             st.session_state.memory_error = f'unavailable ({type(error).__name__})'
