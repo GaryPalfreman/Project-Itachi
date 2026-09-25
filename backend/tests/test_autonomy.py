@@ -4,6 +4,7 @@ from dataclasses import replace
 from fastapi.testclient import TestClient
 
 from app import autonomy, main, orchestration
+from app.account_requests import prepare
 
 
 class AutonomousTests(unittest.IsolatedAsyncioTestCase):
@@ -17,6 +18,21 @@ class AutonomousTests(unittest.IsolatedAsyncioTestCase):
     def test_plan_limits_and_whitelists_tools(self):
         raw = '{"actions":[{"tool":"web_search","input":"fact"},{"tool":"calculate","input":"2+2"},{"tool":"write_file","input":"x"}]}'
         self.assertEqual(autonomy.actions_from_plan(raw, False), [{'tool':'calculate','input':'2+2'}])
+
+    def test_account_request_preparation_contacts_nothing(self):
+        self.assertIn('No login was created', prepare('https://example.org/'))
+        for url in ('http://example.org', 'https://127.0.0.1/',
+                    'https://user:pass@example.org/', 'https://example.org/?email=a',
+                    'https://localhost/', 'https://example.org/signup'):
+            with self.subTest(url=url), self.assertRaises(ValueError):
+                prepare(url)
+
+    async def test_account_request_is_explicitly_pending(self):
+        plan = '{"actions":[{"tool":"request_access","input":"https://example.org/"}]}'
+        with patch.object(autonomy, 'cascade', new=AsyncMock(side_effect=[(plan, 'local'), ('Response', 'local')])):
+            reply = await autonomy.run('Get access', [object()])
+        self.assertIn('Access requests pending review:', reply)
+        self.assertIn('No login was created', reply)
 
     async def test_automatic_search_and_answer_without_knowledge(self):
         plan = '{"actions":[{"tool":"web_search","input":"saturn rings"}]}'

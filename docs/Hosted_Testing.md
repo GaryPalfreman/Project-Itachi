@@ -21,4 +21,4 @@ For a single provider, use `ITACHI_REASONING_URL`, `ITACHI_REASONING_MODEL` and 
 
 ## Autonomous research
 
-The model chooses up to three read-only actions from `web_search` and `calculate`, then synthesizes an answer. Internet access also requires the web checkbox and Tavily key. The tools cannot edit files, run commands, access accounts or escalate privileges. See [[Autonomy_and_Permissions]].
+The model chooses up to three read-only actions from `web_search`, `calculate` and `request_access`, then synthesizes an answer. `request_access` prepares a reviewable website proposal without contacting the site or registering an account. Internet search requires the web checkbox and Tavily key. The tools cannot edit files, run commands, access accounts or escalate privileges. See [[Autonomy_and_Permissions]].
