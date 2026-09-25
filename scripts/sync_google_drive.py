@@ -57,8 +57,8 @@ def find_file(client: httpx.Client, name: str, folder_id: str, api_key: str = ""
             "spaces": "drive",
             "fields": "files(id,name)",
             "pageSize": 10,
-            **({"key": api_key} if api_key else {}),
         },
+        headers={"x-goog-api-key": api_key} if api_key else None,
     )
     response.raise_for_status()
     files = response.json().get("files", [])
@@ -74,7 +74,8 @@ def create_metadata(client: httpx.Client, name: str, folder_id: str, api_key: st
         payload["parents"] = [folder_id]
     response = client.post(
         DRIVE_API + "/files",
-        params={"fields": "id", **({"key": api_key} if api_key else {})},
+        params={"fields": "id"},
+        headers={"x-goog-api-key": api_key} if api_key else None,
         json=payload,
     )
     response.raise_for_status()
@@ -91,8 +92,11 @@ def upload_file(client: httpx.Client, path: Path, folder_id: str, api_key: str =
     mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
     response = client.patch(
         UPLOAD_API + f"/files/{file_id}",
-        params={"uploadType": "media", **({"key": api_key} if api_key else {})},
-        headers={"Content-Type": mime},
+        params={"uploadType": "media"},
+        headers={
+            "Content-Type": mime,
+            **({"x-goog-api-key": api_key} if api_key else {}),
+        },
         content=path.read_bytes(),
     )
     response.raise_for_status()
