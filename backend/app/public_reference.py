@@ -6,6 +6,7 @@ from .public_sources import wikipedia
 from .github_public import search_repos
 from .model_selection import task_for
 from .public_catalog import load as load_public_catalog
+from .public_knowledge import search as search_learned, context as learned_context
 
 
 def arithmetic(prompt: str) -> str | None:
@@ -27,6 +28,12 @@ async def reply(prompt: str, allow_web: bool) -> str:
     result = arithmetic(prompt)
     if result is not None:
         return 'Local calculation: ' + result
+    learned = search_learned(prompt, limit=4)
+    if learned:
+        return (
+            'Itachi learned public references (source excerpts; no generative model required):\n\n'
+            + learned_context(learned)
+        )
     if allow_web:
         if task_for(prompt) == 'code' or any(word in prompt.lower() for word in ('repository', 'repositories', 'github')):
             try:
