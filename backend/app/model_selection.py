@@ -17,9 +17,10 @@ def task_for(prompt: str) -> str:
     return 'general'
 
 
-def rank(routes: list[ModelRoute], prompt: str, feedback: dict | None = None) -> list[ModelRoute]:
+def rank(routes: list[ModelRoute], prompt: str, feedback: dict | None = None,
+         task_override: str = '') -> list[ModelRoute]:
     """Stable ranking; never selects an unconfigured route or stores the prompt."""
-    task = task_for(prompt)
+    task = task_override if task_override in {'general', 'code', 'research', 'reasoning'} else task_for(prompt)
     feedback = feedback or {}
     def score(route):
         identity = (route.name + ' ' + route.model).lower()

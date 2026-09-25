@@ -36,6 +36,7 @@ This is learning by retrieval and knowledge growth, not autonomous weight traini
 
 Itachi's model router can fail over across separately authorized providers. Supported server-side routes include:
 
+- TypeSafe JEV for typed routing/relevance decisions (not prose generation);
 - NVIDIA hosted Nemotron;
 - Groq free-plan models;
 - Google Gemini API free-tier models;
@@ -82,3 +83,6 @@ Zep credentials are never committed to GitHub or exposed to Streamlit users.
 
 
 Google Drive and MEGA setup and recovery are documented in [[Google_Drive_and_MEGA]].
+
+
+JEV routing details are documented in [[JEV_Decision_Layer]].

@@ -23,6 +23,7 @@ from backend.app.public_reference import reply as reference_reply
 from backend.app.public_catalog import load as load_public_catalog
 from backend.app.semantic_memory import SessionSemanticMemory, embed, format_context
 from backend.app.public_knowledge import load as load_learned_knowledge, search as search_learned_knowledge, context as learned_context
+from backend.app.jev import evaluate_prompt as jev_evaluate_prompt
 
 st.markdown('''<style>
  .stApp { background: radial-gradient(circle at top,#132936,#080e17 65%); color:#dce8f2; }
@@ -80,6 +81,8 @@ if openrouter_key and len(configured) < 5 and not any(r.name == 'OpenRouter Free
     configured.append(ModelRoute('OpenRouter Free', 'https://openrouter.ai/api/v1',
                                  'openrouter/free', openrouter_key))
 
+typesafe_key = setting('TYPESAFE_API_KEY', setting('ITACHI_JEV_TOKEN'))
+
 hf_token = setting('ITACHI_HF_TOKEN', setting('HF_TOKEN'))
 if hf_token:
     if time.time() - st.session_state.get('hf_last_checked', 0) > 1800:
@@ -108,6 +111,8 @@ if 'semantic_memory' not in st.session_state:
     st.session_state.semantic_memory = SessionSemanticMemory()
 if 'memory_error' not in st.session_state:
     st.session_state.memory_error = ''
+if 'jev_error' not in st.session_state:
+    st.session_state.jev_error = ''
 
 memory_enabled = bool(nvidia_key)
 learned_knowledge = load_learned_knowledge()
@@ -120,8 +125,11 @@ with st.sidebar:
                        file_name='itachi-public-catalog.json', mime='application/json')
     st.caption(f"Answer models available: {len(configured) if provider_enabled else 0}")
     st.caption(f"Nemotron semantic memory: {'ready' if memory_enabled else 'off'}")
+    st.caption(f"JEV decision layer: {'ready' if typesafe_key else 'off'}")
     if st.session_state.memory_error:
         st.caption(f"Memory status: {st.session_state.memory_error}")
+    if st.session_state.jev_error:
+        st.caption(f"JEV status: {st.session_state.jev_error}")
     if hf_token and st.session_state.get('hf_discovery_error'):
         st.caption('Hugging Face model discovery is unavailable; manually configured models may still work.')
     st.header('Tools')
@@ -153,6 +161,19 @@ if prompt:
     with st.chat_message('user'):
         st.write(prompt)
 
+    jev_task = ''
+    jev_web = use_web
+    jev_use_learned = True
+    if typesafe_key:
+        try:
+            jev_decision = asyncio.run(jev_evaluate_prompt(prompt, typesafe_key))
+            jev_task = jev_decision.task
+            jev_web = use_web and jev_decision.needs_web
+            jev_use_learned = jev_decision.use_learned_knowledge
+            st.session_state.jev_error = ''
+        except Exception as error:
+            st.session_state.jev_error = f'unavailable ({type(error).__name__}); using built-in routing'
+
     recalled_context = '(none)'
     prompt_vector = None
     if use_memory:
@@ -164,12 +185,15 @@ if prompt:
         except Exception as error:
             st.session_state.memory_error = f'unavailable ({type(error).__name__})'
 
-    learned_results = search_learned_knowledge(prompt, learned_knowledge, limit=5)
+    learned_results = (
+        search_learned_knowledge(prompt, learned_knowledge, limit=5)
+        if jev_use_learned else []
+    )
     learned_public_context = learned_context(learned_results)
 
     web_results = []
     web_error = ''
-    if use_web and not autonomous and configured and provider_enabled and setting('ITACHI_TAVILY_KEY'):
+    if jev_web and not autonomous and configured and provider_enabled and setting('ITACHI_TAVILY_KEY'):
         try:
             web_results = asyncio.run(search(prompt, setting('ITACHI_TAVILY_KEY')))
         except Exception as error:
@@ -185,7 +209,7 @@ if prompt:
          f'Web evidence:\n{web_context(web_results) or "(none)"}\n\n'
          f'Question: {prompt}'}]
 
-    ordered = rank(configured, prompt, st.session_state.route_feedback) if route_name == 'Automatic' else (
+    ordered = rank(configured, prompt, st.session_state.route_feedback, jev_task) if route_name == 'Automatic' else (
         [route for route in configured if route.name == route_name] +
         [route for route in configured if route.name != route_name])
 
@@ -210,7 +234,7 @@ if prompt:
                             autonomous_prompt,
                             ordered,
                             setting('ITACHI_TAVILY_KEY'),
-                            use_web,
+                            jev_web,
                         )
                     )
                     used = next((r.name for r in ordered if f'[Answered by {r.name}]' in reply), ordered[0].name)
