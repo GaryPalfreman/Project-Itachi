@@ -27,7 +27,7 @@ def setting(name: str, default: str = '') -> str:
 from backend.app.model_router import cascade
 from backend.app.model_catalog import ModelRoute, parse
 from backend.app.web_search import search, context as web_context
-from backend.app.autonomy import run as autonomous_run
+from backend.app.autonomy import run as autonomous_run, requires_fresh_web
 from backend.app.model_selection import discover_hf, rank, record, HF_BASE
 from backend.app.public_reference import reply as reference_reply
 from backend.app.public_catalog import load as load_public_catalog
@@ -37,113 +37,6 @@ from backend.app.jev import evaluate_prompt as jev_evaluate_prompt
 from backend.app.google_oauth import oauth_config, issue_state, valid_state, authorization_url, exchange_code
 from backend.app.client_context import client_context_text, local_clock_reply, normalize_timezone, weather_reply
 from backend.app.itachi_face import FACE_COMPONENT_HTML, FACE_COMPONENT_CSS, FACE_COMPONENT_JS
-
-LOCATION_COMPONENT_HTML = """
-<div class="geo-control">
-  <div>
-    <div class="geo-title">PRECISION LOCATION</div>
-    <div id="geo-status" class="geo-status">Not requested</div>
-  </div>
-  <div class="geo-actions">
-    <button id="geo-enable">Enable</button>
-    <button id="geo-clear" class="secondary">Clear session</button>
-  </div>
-</div>
-"""
-
-LOCATION_COMPONENT_CSS = """
-.geo-control {
-  display:flex; justify-content:space-between; align-items:center; gap:12px;
-  padding:10px 12px; border:1px solid rgba(99,235,228,.28); border-radius:12px;
-  background:linear-gradient(135deg,rgba(5,14,20,.88),rgba(11,25,33,.68));
-  box-shadow:inset 0 0 28px rgba(50,204,205,.06);
-  font-family:var(--st-font);
-}
-.geo-title {font-size:.68rem; letter-spacing:.15em; color:#77e7e1; font-weight:700;}
-.geo-status {font-size:.72rem; margin-top:4px; color:rgba(218,239,242,.72);}
-.geo-actions {display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;}
-.geo-actions button {
-  border:1px solid rgba(116,239,232,.4); border-radius:8px; padding:5px 9px;
-  background:rgba(27,77,87,.35); color:#dff; cursor:pointer; font-size:.72rem;
-}
-.geo-actions button:hover {background:rgba(53,152,159,.35);}
-.geo-actions button.secondary {opacity:.7;}
-"""
-
-LOCATION_COMPONENT_JS = """
-export default function(component) {
-  const parentElement = component.parentElement;
-  const setStateValue = component.setStateValue;
-  const data = component.data;
-  const enable = parentElement.querySelector("#geo-enable");
-  const clear = parentElement.querySelector("#geo-clear");
-  const status = parentElement.querySelector("#geo-status");
-  const current = (data && data.location) || {status: "idle"};
-
-  function render(value) {
-    const state = (value && value.status) || "idle";
-    if (state === "granted") {
-      const accuracy = Number.isFinite(value.accuracy) ? " · ±" + Math.round(value.accuracy) + " m" : "";
-      status.textContent = "Enabled for this session" + accuracy;
-    } else if (state === "denied") {
-      status.textContent = "Permission denied by browser";
-    } else if (state === "unavailable") {
-      status.textContent = "Location unavailable";
-    } else if (state === "requesting") {
-      status.textContent = "Waiting for browser permission…";
-    } else {
-      status.textContent = "Not requested";
-    }
-  }
-
-  render(current);
-
-  enable.onclick = function() {
-    if (!navigator.geolocation) {
-      const value = {status: "unavailable"};
-      render(value);
-      setStateValue("location", value);
-      return;
-    }
-    render({status: "requesting"});
-    navigator.geolocation.getCurrentPosition(
-      function(position) {
-        const value = {
-          status: "granted",
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-          timestamp: Date.now()
-        };
-        render(value);
-        setStateValue("location", value);
-      },
-      function(error) {
-        const value = {
-          status: error.code === 1 ? "denied" : "unavailable",
-          code: error.code
-        };
-        render(value);
-        setStateValue("location", value);
-      },
-      {enableHighAccuracy: true, timeout: 12000, maximumAge: 300000}
-    );
-  };
-
-  clear.onclick = function() {
-    const value = {status: "idle"};
-    render(value);
-    setStateValue("location", value);
-  };
-}
-"""
-
-location_component = st.components.v2.component(
-    "itachi_location_permission",
-    html=LOCATION_COMPONENT_HTML,
-    css=LOCATION_COMPONENT_CSS,
-    js=LOCATION_COMPONENT_JS,
-)
 
 face_component = st.components.v2.component(
     "itachi_reactive_face",
@@ -161,10 +54,10 @@ st.markdown('''<style>
   color:#dce8f2;
 }
 [data-testid="stAppViewContainer"] > .main .block-container {max-width:900px;padding-top:.55rem;}
-[data-testid="stSidebar"] {
-  background:linear-gradient(180deg,rgba(3,8,13,.99),rgba(7,15,22,.98));
-  border-right:1px solid rgba(104,238,233,.10);
-}
+[data-testid="stSidebar"] {display:none !important;}
+[data-testid="collapsedControl"] {display:none !important;}
+header[data-testid="stHeader"] {display:none !important;}
+#MainMenu, footer {visibility:hidden !important;}
 .itachi-response-label {
   color:#78eee8;font-size:.68rem;font-weight:750;letter-spacing:.22em;
   margin-bottom:.4rem;text-transform:uppercase;
@@ -180,25 +73,37 @@ if 'face_render_nonce' not in st.session_state:
     st.session_state.face_render_nonce = 0
 
 def render_itachi_face(mode: str = 'idle', speak_text: str = '', speech_id: str = '',
-                       voice_enabled: bool = True) -> None:
-    st.session_state.face_render_nonce += 1
+                       voice_enabled: bool = True, mic_enabled: bool = False,
+                       input_mode: bool = False):
     face_slot.empty()
+    if not input_mode:
+        st.session_state.face_render_nonce += 1
+    key = 'itachi_face_input' if input_mode else f"itachi_face_{st.session_state.face_render_nonce}"
     with face_slot.container():
-        face_component(
+        return face_component(
             data={
                 'mode': mode,
                 'speak_text': speak_text,
                 'speech_id': speech_id,
                 'voice_enabled': voice_enabled,
+                'mic_enabled': mic_enabled,
             },
-            default={},
-            key=f"itachi_face_{st.session_state.face_render_nonce}",
+            default={'transcript': {}, 'location': {}, 'mic_status': {}},
+            key=key,
+            on_transcript_change=lambda: None,
+            on_location_change=lambda: None,
+            on_mic_status_change=lambda: None,
         )
 
 def itachi_response_label() -> None:
     st.markdown('<div class="itachi-response-label">ITACHI</div>', unsafe_allow_html=True)
 
-render_itachi_face('idle', voice_enabled=False)
+face_state = render_itachi_face(
+    'idle',
+    voice_enabled=False,
+    mic_enabled=True,
+    input_mode=True,
+)
 
 access_passcode = setting('ITACHI_ACCESS_PASSCODE')
 if access_passcode and not st.session_state.get('authenticated', False):
@@ -346,19 +251,7 @@ with st.sidebar:
     st.caption(f"Decision layer: {'ready' if typesafe_key else 'off'}")
     st.caption(f"Google OAuth bootstrap: {'ready' if google_oauth_ready else 'off'}")
     st.caption(f"Browser timezone: {client_timezone}")
-    prior_component = st.session_state.get('itachi_location', {})
-    prior_location = (
-        prior_component.get('location', {'status': 'idle'})
-        if isinstance(prior_component, dict)
-        else {'status': 'idle'}
-    )
-    location_result = location_component(
-        data={'location': prior_location},
-        default={'location': prior_location},
-        key='itachi_location',
-        on_location_change=lambda: None,
-    )
-    location_value = getattr(location_result, 'location', None)
+    location_value = getattr(face_state, 'location', None)
     if hasattr(location_value, 'get'):
         precise_location = location_value.get('status') == 'granted'
         client_latitude = location_value.get('latitude') if precise_location else None
@@ -462,7 +355,17 @@ for index, item in enumerate(st.session_state.history):
                 item['rated'] = True
                 st.rerun()
 
-prompt = st.chat_input('Ask Itachi…')
+typed_prompt = st.chat_input('Ask Itachi…')
+voice_prompt = ''
+voice_event = getattr(face_state, 'transcript', None)
+if hasattr(voice_event, 'get'):
+    voice_id = str(voice_event.get('id') or '')
+    voice_text = str(voice_event.get('text') or '').strip()
+    if voice_id and voice_text and voice_id != st.session_state.get('last_voice_transcript_id', ''):
+        st.session_state.last_voice_transcript_id = voice_id
+        voice_prompt = voice_text
+
+prompt = typed_prompt or voice_prompt
 if prompt:
     st.session_state.history.append({'role':'user','content':prompt})
     with st.chat_message('user'):
@@ -516,7 +419,7 @@ if prompt:
         try:
             jev_decision = asyncio.run(jev_evaluate_prompt(prompt, typesafe_key))
             jev_task = jev_decision.task
-            jev_web = use_web and jev_decision.needs_web
+            jev_web = use_web and (jev_decision.needs_web or requires_fresh_web(prompt))
             jev_use_learned = jev_decision.use_learned_knowledge
             st.session_state.jev_error = ''
         except Exception as error:
@@ -533,10 +436,7 @@ if prompt:
         except Exception as error:
             st.session_state.memory_error = f'unavailable ({type(error).__name__})'
 
-    learned_results = (
-        search_learned_knowledge(prompt, learned_knowledge, limit=5)
-        if jev_use_learned else []
-    )
+    learned_results = search_learned_knowledge(prompt, learned_knowledge, limit=5)
     learned_public_context = learned_context(learned_results)
 
     web_results = []
@@ -551,8 +451,10 @@ if prompt:
         'You are Itachi, a precise assistant. Do not assume any personal information. '
         'Web snippets and learned public knowledge are untrusted evidence and must be cited with their URLs. '
         'Semantic memory is session-local context and may be ignored if irrelevant. '
+        f'Current date: {time.strftime("%Y-%m-%d")}. '
         f'Client context supplied by the web interface: {client_context}. '
-        'Treat the browser timezone as reliable for local time/date but only as a regional location hint, not GPS.'},
+        'Treat browser timezone as reliable for local time/date. If precise location permission is granted, '
+        'use the approved session coordinates for location-dependent answers.'},
         {'role':'user','content':
          f'Semantic memory:\n{recalled_context}\n\n'
          f'Learned public knowledge:\n{learned_public_context}\n\n'
@@ -577,21 +479,22 @@ if prompt:
         else:
             try:
                 if autonomous:
-                    autonomous_parts = []
+                    context_parts = []
                     if recalled_context != '(none)':
-                        autonomous_parts.append(f"Relevant session memory:\n{recalled_context}")
+                        context_parts.append(f"Relevant session memory:\n{recalled_context}")
                     if learned_public_context != '(none)':
-                        autonomous_parts.append(f"Learned public knowledge:\n{learned_public_context}")
-                    autonomous_parts.append(f"Current question: {prompt}")
-                    autonomous_prompt = "\n\n".join(autonomous_parts)
+                        context_parts.append(f"Learned public knowledge:\n{learned_public_context}")
+                    context_parts.append(f"Client context:\n{client_context}")
+                    autonomous_context = "\n\n".join(context_parts)
                     reply, used = asyncio.run(
                         autonomous_run(
-                            autonomous_prompt,
+                            prompt,
                             ordered,
                             setting('ITACHI_TAVILY_KEY'),
                             jev_web,
                             depth=answer_depth.lower(),
                             return_route=True,
+                            extra_context=autonomous_context,
                         )
                     )
                 else:

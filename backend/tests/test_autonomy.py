@@ -25,6 +25,11 @@ class AutonomousTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(autonomy.depth_for('Explain caching with a few examples'), 'standard')
         self.assertEqual(autonomy.depth_for('hello', 'deep'), 'deep')
 
+    def test_current_result_questions_force_fresh_web(self):
+        self.assertTrue(autonomy.requires_fresh_web('Who won the last FIFA World Cup?'))
+        self.assertTrue(autonomy.requires_fresh_web('What is the latest Python release?'))
+        self.assertFalse(autonomy.requires_fresh_web('Explain recursion'))
+
     def test_plan_honors_deep_action_limit(self):
         raw = '{"actions":[' + ','.join(
             '{"tool":"calculate","input":"2+2"}' for _ in range(6)
@@ -53,7 +58,10 @@ class AutonomousTests(unittest.IsolatedAsyncioTestCase):
              patch.object(autonomy, 'search', new=AsyncMock(return_value=results)) as search:
             answer = await autonomy.run('Explain Saturn with current sources', [object()], 'key', True, depth='standard')
         self.assertIn('https://example.org/saturn', answer)
-        search.assert_awaited_once_with('saturn rings', 'key')
+        search.assert_awaited_once()
+        query, key = search.await_args.args
+        self.assertIn('saturn rings', query)
+        self.assertEqual(key, 'key')
 
 
     async def test_deep_mode_adds_critique_and_revision(self):
