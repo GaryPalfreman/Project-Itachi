@@ -43,14 +43,24 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python -m scripts.continuous_learning
+      - name: Save refreshed knowledge outside the deployment branch
+        run: |
+          git add data/public_catalog.json data/knowledge
+          if ! git diff --cached --quiet; then
+            git commit -m 'Refresh Itachi public knowledge'
+          fi
+          git push origin HEAD:itachi-knowledge
       - name: Replicate public knowledge to Supabase when configured
+        continue-on-error: true
         env:
           ITACHI_SUPABASE_URL: ${{ secrets.ITACHI_SUPABASE_URL }}
           ITACHI_SUPABASE_SERVER_KEY: ${{ secrets.ITACHI_SUPABASE_SERVER_KEY }}
         run: python -m scripts.sync_supabase_knowledge
       - name: Replicate a throttled subset to Zep when configured
+        continue-on-error: true
         env:
           ITACHI_ZEP_API_KEY: ${{ secrets.ITACHI_ZEP_API_KEY }}
+          ITACHI_ZEP_GROUP_ID: ${{ secrets.ITACHI_ZEP_GROUP_ID }}
         run: |
           if [ -n "$ITACHI_ZEP_API_KEY" ]; then
             python -m pip install 'zep-cloud>=3,<4'
@@ -59,6 +69,7 @@ jobs:
             echo "Zep replica not configured"
           fi
       - name: Mirror recovery snapshot to Google Drive when configured
+        continue-on-error: true
         env:
           ITACHI_GOOGLE_API_KEY: ${{ secrets.ITACHI_GOOGLE_API_KEY }}
           ITACHI_GOOGLE_OAUTH_JSON: ${{ secrets.ITACHI_GOOGLE_OAUTH_JSON }}
@@ -68,6 +79,7 @@ jobs:
           ITACHI_GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.ITACHI_GOOGLE_DRIVE_FOLDER_ID }}
         run: python -m scripts.sync_google_drive
       - name: Mirror recovery snapshot to MEGA when configured
+        continue-on-error: true
         env:
           ITACHI_MEGA_EMAIL: ${{ secrets.ITACHI_MEGA_EMAIL }}
           ITACHI_MEGA_PASSWORD: ${{ secrets.ITACHI_MEGA_PASSWORD }}
@@ -88,14 +100,8 @@ jobs:
             data/knowledge/public_knowledge.jsonl
             data/knowledge/state.json
           retention-days: 90
-      - name: Save refreshed knowledge outside the deployment branch
-        run: |
-          git add data/public_catalog.json data/knowledge
-          if ! git diff --cached --quiet; then
-            git commit -m 'Refresh Itachi public knowledge'
-          fi
-          git push origin HEAD:itachi-knowledge
       - name: Optional HTTPS mirrors
+        continue-on-error: true
         env:
           ITACHI_MIRRORS_JSON: ${{ secrets.ITACHI_MIRRORS_JSON }}
           ITACHI_MIRROR_TOKEN_1: ${{ secrets.ITACHI_MIRROR_TOKEN_1 }}
