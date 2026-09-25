@@ -7,6 +7,7 @@ from pathlib import Path
 import httpx
 
 from scripts.sync_google_drive import DRIVE_API, DEFAULT_FOLDER_ID, access_token, find_file
+from backend.app.google_oauth import oauth_config
 
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = {
@@ -28,14 +29,19 @@ def download_file(client: httpx.Client, file_id: str, destination: Path, api_key
 
 
 if __name__ == "__main__":
-    client_id = os.getenv("ITACHI_GOOGLE_CLIENT_ID", "").strip()
-    client_secret = os.getenv("ITACHI_GOOGLE_CLIENT_SECRET", "").strip()
+    raw_oauth = os.getenv("ITACHI_GOOGLE_OAUTH_JSON", "")
     refresh_token = os.getenv("ITACHI_GOOGLE_REFRESH_TOKEN", "").strip()
     folder_id = os.getenv("ITACHI_GOOGLE_DRIVE_FOLDER_ID", DEFAULT_FOLDER_ID).strip() or DEFAULT_FOLDER_ID
     api_key = os.getenv("ITACHI_GOOGLE_API_KEY", "").strip()
 
-    if not all((client_id, client_secret, refresh_token)):
-        raise SystemExit("Google Drive recovery credentials are not configured")
+    client_id, client_secret, _ = oauth_config(
+        raw_oauth,
+        os.getenv("ITACHI_GOOGLE_CLIENT_ID", ""),
+        os.getenv("ITACHI_GOOGLE_CLIENT_SECRET", ""),
+        os.getenv("ITACHI_GOOGLE_REDIRECT_URI", ""),
+    )
+    if not refresh_token:
+        raise SystemExit("Google Drive refresh token is not configured")
 
     token = access_token(client_id, client_secret, refresh_token)
     headers = {"Authorization": "Bearer " + token}
