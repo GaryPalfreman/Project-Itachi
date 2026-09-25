@@ -86,6 +86,46 @@ class AnswerGuardTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(answer, 'Useful answer')
         self.assertIn('Source:', sourced)
 
+    async def test_primary_tool_json_is_not_returned_to_user(self):
+        leaked = '{"tool":"search","arguments":{"query":"NVIDIA Nemotron latest news 2026","max_results":10}}'
+        with patch.object(
+            answer_guard,
+            'autonomous_run',
+            new=AsyncMock(return_value=(leaked, 'route-a')),
+        ), patch.object(
+            answer_guard,
+            'cascade',
+            new=AsyncMock(return_value=('Final prose answer', 'route-b')),
+        ):
+            answer, route = await answer_guard.guaranteed_answer(
+                'Find the latest news about NVIDIA Nemotron.',
+                [object()],
+            )
+        self.assertEqual(answer, 'Final prose answer')
+        self.assertEqual(route, 'route-b')
+        self.assertNotIn('"tool"', answer)
+
+    async def test_fallback_tool_json_retries_once(self):
+        leaked = '{"tool":"search","arguments":{"query":"NVIDIA Nemotron latest news 2026"}}'
+        with patch.object(
+            answer_guard,
+            'autonomous_run',
+            new=AsyncMock(side_effect=RuntimeError('primary down')),
+        ), patch.object(
+            answer_guard,
+            'cascade',
+            new=AsyncMock(side_effect=[
+                (leaked, 'route-a'),
+                ('Recovered final prose', 'route-b'),
+            ]),
+        ):
+            answer, route = await answer_guard.guaranteed_answer(
+                'Find the latest news about NVIDIA Nemotron.',
+                [object()],
+            )
+        self.assertEqual(answer, 'Recovered final prose')
+        self.assertEqual(route, 'route-b')
+
     async def test_guard_never_returns_empty_text(self):
         with patch.object(
             answer_guard,
