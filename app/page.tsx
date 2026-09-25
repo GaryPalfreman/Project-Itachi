@@ -315,6 +315,8 @@ export default function Home() {
     locale: "",
   });
   const transcriptRef = useRef<HTMLDivElement | null>(null);
+  const inFlightRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
@@ -416,7 +418,7 @@ export default function Home() {
   };
 
   const startListening = () => {
-    if (thinking) return;
+    if (thinking || inFlightRef.current || mode === "listening") return;
     requestLocation();
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) {
@@ -428,14 +430,26 @@ export default function Home() {
     recognition.interimResults = false;
     recognition.continuous = false;
     recognition.onstart = () => setMode("listening");
-    recognition.onerror = () => setMode("idle");
+    recognition.onerror = (event: any) => {
+      setMode("idle");
+      if (event?.error === "not-allowed" || event?.error === "service-not-allowed") {
+        setStatusText("Microphone permission was not granted");
+      } else if (event?.error && event.error !== "aborted") {
+        setStatusText("Speech recognition could not be completed");
+      }
+    };
     recognition.onend = () => setMode((current) => (current === "listening" ? "idle" : current));
     recognition.onresult = (event: any) => {
       const text = String(event.results?.[0]?.[0]?.transcript || "").trim();
       if (text) setInput(text);
       setMode("idle");
     };
-    recognition.start();
+    try {
+      recognition.start();
+    } catch {
+      setMode("idle");
+      setStatusText("Speech recognition is already active");
+    }
   };
 
   const unlock = async (event: FormEvent) => {
@@ -458,15 +472,19 @@ export default function Home() {
   const submit = async (event?: FormEvent) => {
     event?.preventDefault();
     const prompt = input.trim();
-    if (!prompt || thinking || !unlocked) return;
+    if (!prompt || thinking || inFlightRef.current || !unlocked) return;
 
     const priorHistory = history.slice(-8);
-    setHistory((current) => [...current, { role: "user", content: prompt }]);
+    inFlightRef.current = true;
+    setHistory((current) => [...current, { role: "user" as const, content: prompt }].slice(-12));
     setInput("");
     setThinking(true);
     setMode("thinking");
     window.speechSynthesis?.cancel();
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const timeout = window.setTimeout(() => controller.abort(), 58000);
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -478,6 +496,7 @@ export default function Home() {
           history: priorHistory,
           browser,
         }),
+        signal: controller.signal,
       });
       const payload = await response.json().catch(() => ({}));
       if (response.status === 401) {
@@ -489,17 +508,23 @@ export default function Home() {
         throw new Error(String(payload.detail || "Itachi could not complete the request"));
       }
       const answer = String(payload.answer || "").trim() || "I could not complete that request just now.";
-      setHistory((current) => [...current, { role: "assistant", content: answer }]);
-      setThinking(false);
+      setHistory((current) => [...current, { role: "assistant" as const, content: answer }].slice(-12));
       speak(answer);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "The request could not be completed.";
-      setHistory((current) => [...current, { role: "assistant", content: message }]);
-      setThinking(false);
+      const message = error instanceof DOMException && error.name === "AbortError"
+        ? "That request took too long. Please try again."
+        : error instanceof Error ? error.message : "The request could not be completed.";
+      setHistory((current) => [...current, { role: "assistant" as const, content: message }].slice(-12));
       setMode("idle");
+    } finally {
+      window.clearTimeout(timeout);
+      if (abortRef.current === controller) abortRef.current = null;
+      inFlightRef.current = false;
+      setThinking(false);
     }
   };
+
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   if (accessRequired === null) {
     return (

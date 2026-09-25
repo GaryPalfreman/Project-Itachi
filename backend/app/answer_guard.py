@@ -55,10 +55,11 @@ def _text(value: object) -> str:
 def _timeout_for(depth: str) -> int:
     depth = depth.lower().strip() if isinstance(depth, str) else 'auto'
     if depth == 'deep':
-        return 110
+        return 52
     if depth == 'quick':
-        return 45
-    return 70
+        return 35
+    # Vercel's function has a 60-second ceiling.  Reserve time for response delivery.
+    return 52
 
 
 async def guaranteed_answer(
@@ -71,6 +72,7 @@ async def guaranteed_answer(
     rapidapi_key: str = '',
 ) -> tuple[str, str]:
     """Return non-empty answer text and the internal route used when available."""
+    deadline = _timeout_for(depth)
     autonomous_error = None
     try:
         result = await asyncio.wait_for(
@@ -84,7 +86,7 @@ async def guaranteed_answer(
                 extra_context=extra_context,
                 rapidapi_key=rapidapi_key,
             ),
-            timeout=_timeout_for(depth),
+            timeout=deadline,
         )
         if isinstance(result, tuple):
             answer = _text(result[0])
@@ -101,16 +103,19 @@ async def guaranteed_answer(
 
     current_date = datetime.now(timezone.utc).date().isoformat()
     fresh_results = []
+    # The autonomous pass owns most of the deadline.  Keep recovery bounded so a
+    # serverless invocation can always return a useful response before Vercel ends it.
+    recovery_timeout = 10
     if allow_web and web_key:
         try:
-            fresh_results = await asyncio.wait_for(search(prompt, web_key), timeout=15)
+            fresh_results = await asyncio.wait_for(search(prompt, web_key), timeout=recovery_timeout)
         except Exception:
             fresh_results = []
     if allow_web and not fresh_results and rapidapi_key:
         try:
             fresh_results = await asyncio.wait_for(
                 rapid_web_search(prompt, rapidapi_key),
-                timeout=15,
+                timeout=recovery_timeout,
             )
         except Exception:
             fresh_results = []
@@ -138,7 +143,7 @@ async def guaranteed_answer(
             },
         ]
         try:
-            answer, route = await asyncio.wait_for(cascade(routes, messages), timeout=45)
+            answer, route = await asyncio.wait_for(cascade(routes, messages), timeout=20)
             cleaned = _final_answer(prompt, answer)
             if cleaned:
                 return cleaned, _text(route)
@@ -164,7 +169,7 @@ async def guaranteed_answer(
                     ),
                 },
             ]
-            answer, route = await asyncio.wait_for(cascade(routes, retry_messages), timeout=45)
+            answer, route = await asyncio.wait_for(cascade(routes, retry_messages), timeout=15)
             cleaned = _final_answer(prompt, answer)
             if cleaned:
                 return cleaned, _text(route)
@@ -172,13 +177,15 @@ async def guaranteed_answer(
             pass
 
     try:
-        fallback = await asyncio.wait_for(reference_reply(prompt, bool(allow_web)), timeout=20)
+        fallback = await asyncio.wait_for(reference_reply(prompt, bool(allow_web)), timeout=10)
         fallback = _final_answer(prompt, fallback)
         if fallback:
             return fallback, ''
     except Exception:
         pass
 
+    if any(marker in prompt.lower() for marker in ('trading at', 'stock price', 'share price', 'market price', 'ticker')):
+        return ('The live market lookup is temporarily unavailable. Please try again shortly.', '')
     reason = type(autonomous_error).__name__ if autonomous_error is not None else 'Unavailable'
     return (
         f'I could not complete the full answer pipeline just now ({reason}). '

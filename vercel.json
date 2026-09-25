@@ -5,5 +5,11 @@
       "maxDuration": 60,
       "excludeFiles": "{backend/tests/**,scripts/**,frontend/**,supabase/**,.github/**,streamlit_app.py,examples/**}"
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.py"
+    }
+  ]
 }

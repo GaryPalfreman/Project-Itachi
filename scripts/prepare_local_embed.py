@@ -10,6 +10,7 @@ REVISION = '18abd04873998492fdbb52aa48eb4bdde53c3593'
 
 
 def prepare(weights: Path, destination: Path) -> Path:
+    requested_destination = destination
     weights = weights.expanduser().resolve(strict=True)
     destination = destination.expanduser().resolve()
     result = inspect(weights, hash_weights=True)
@@ -37,7 +38,9 @@ def prepare(weights: Path, destination: Path) -> Path:
         'repo': MODEL_ID, 'revision': REVISION, 'sha256': NEMOTRON_EMBED_SHA256,
         'purpose': 'embeddings only; not chat completions',
     }, indent=2) + '\n')
-    return destination
+    # Preserve the caller's path spelling (notably /var versus /private/var on macOS)
+    # while still using the resolved path for all security checks and writes above.
+    return requested_destination
 
 
 def main() -> None:

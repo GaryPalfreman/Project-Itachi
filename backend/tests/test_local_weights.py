@@ -59,7 +59,7 @@ class LocalWeightsTests(unittest.TestCase):
                                   hashlib.sha256(weights.read_bytes()).hexdigest()):
                     prepared = prepare_local_embed.prepare(weights, output)
             self.assertEqual(prepared, output)
-            self.assertEqual((output / 'model.safetensors').resolve(), weights)
+            self.assertEqual((output / 'model.safetensors').resolve(), weights.resolve())
             self.assertEqual(called[0]['repo_id'], 'nvidia/Nemotron-3-Embed-1B-BF16')
 
 
