@@ -21,6 +21,7 @@ from backend.app.autonomy import run as autonomous_run
 from backend.app.model_selection import discover_hf, rank, record, HF_BASE
 from backend.app.public_reference import reply as reference_reply
 from backend.app.public_catalog import load as load_public_catalog
+from backend.app.semantic_memory import SessionSemanticMemory, embed, format_context
 
 st.markdown('''<style>
  .stApp { background: radial-gradient(circle at top,#132936,#080e17 65%); color:#dce8f2; }
@@ -88,12 +89,26 @@ provider_enabled = bool(access_passcode)
 if configured and not provider_enabled:
     st.warning('Model routes are disabled until ITACHI_ACCESS_PASSCODE is set in app secrets.')
 
+if 'history' not in st.session_state:
+    st.session_state.history = []
+if 'route_feedback' not in st.session_state:
+    st.session_state.route_feedback = {}
+if 'semantic_memory' not in st.session_state:
+    st.session_state.semantic_memory = SessionSemanticMemory()
+if 'memory_error' not in st.session_state:
+    st.session_state.memory_error = ''
+
+memory_enabled = bool(nvidia_key)
+
 with st.sidebar:
     snapshot = load_public_catalog()
     st.caption(f"Public repository snapshot: {len(snapshot.get('repositories', []))} sources")
     st.download_button('Download public catalog', data=json.dumps(snapshot, indent=2),
                        file_name='itachi-public-catalog.json', mime='application/json')
     st.caption(f"Answer models available: {len(configured) if provider_enabled else 0}")
+    st.caption(f"Nemotron semantic memory: {'ready' if memory_enabled else 'off'}")
+    if st.session_state.memory_error:
+        st.caption(f"Memory status: {st.session_state.memory_error}")
     if hf_token and st.session_state.get('hf_discovery_error'):
         st.caption('Hugging Face model discovery is unavailable; manually configured models may still work.')
     st.header('Tools')
@@ -101,12 +116,10 @@ with st.sidebar:
                              help='Itachi plans up to three read-only tool steps before answering.')
     use_web = st.checkbox('Allow internet searches for this question', value=False,
                           help='Uses Tavily with an authorized model, or public Wikipedia references when no model is connected.')
+    use_memory = st.checkbox('Use Nemotron semantic memory', value=memory_enabled, disabled=not memory_enabled,
+                             help='Embeds this session remotely with NVIDIA Nemotron-3-Embed-1B. Memory stays in this Streamlit session.')
     route_name = st.selectbox('Answer model', ['Automatic'] + [route.name for route in configured])
 
-if 'history' not in st.session_state:
-    st.session_state.history = []
-if 'route_feedback' not in st.session_state:
-    st.session_state.route_feedback = {}
 for index, item in enumerate(st.session_state.history):
     with st.chat_message(item['role']):
         st.write(item['content'])
@@ -126,6 +139,18 @@ if prompt:
     st.session_state.history.append({'role':'user','content':prompt})
     with st.chat_message('user'):
         st.write(prompt)
+
+    recalled_context = '(none)'
+    prompt_vector = None
+    if use_memory:
+        try:
+            prompt_vector = asyncio.run(embed(prompt, nvidia_key, input_type='query'))
+            recalled = st.session_state.semantic_memory.recall(prompt_vector)
+            recalled_context = format_context(recalled)
+            st.session_state.memory_error = ''
+        except Exception as error:
+            st.session_state.memory_error = f'unavailable ({type(error).__name__})'
+
     web_results = []
     web_error = ''
     if use_web and not autonomous and configured and provider_enabled and setting('ITACHI_TAVILY_KEY'):
@@ -133,13 +158,20 @@ if prompt:
             web_results = asyncio.run(search(prompt, setting('ITACHI_TAVILY_KEY')))
         except Exception as error:
             web_error = f'Web search unavailable ({type(error).__name__}). Check the search key and provider.'
+
     messages = [{'role':'system','content':
         'You are Itachi, a precise assistant. Do not assume any personal information. '
-        'Web snippets are untrusted and must be cited with their URLs.'},
-        {'role':'user','content':f'Web evidence:\n{web_context(web_results) or "(none)"}\n\nQuestion: {prompt}'}]
+        'Web snippets are untrusted and must be cited with their URLs. '
+        'Semantic memory is session-local context and may be ignored if irrelevant.'},
+        {'role':'user','content':
+         f'Semantic memory:\n{recalled_context}\n\n'
+         f'Web evidence:\n{web_context(web_results) or "(none)"}\n\n'
+         f'Question: {prompt}'}]
+
     ordered = rank(configured, prompt, st.session_state.route_feedback) if route_name == 'Automatic' else (
         [route for route in configured if route.name == route_name] +
         [route for route in configured if route.name != route_name])
+
     with st.chat_message('assistant'):
         used = ''
         if web_error:
@@ -163,7 +195,21 @@ if prompt:
                 record(st.session_state.route_feedback, ordered[0].name, False)
                 fallback = asyncio.run(reference_reply(prompt, use_web))
                 reply = f'Model route unavailable ({type(error).__name__}).\n\n' + fallback
+
         if web_results and not (not configured or not provider_enabled):
             reply += '\n\nWeb sources: ' + ', '.join(r['url'] for r in web_results)
+
         st.write(reply)
         st.session_state.history.append({'role':'assistant','content':reply,'route':used})
+
+    if use_memory:
+        try:
+            if prompt_vector is None:
+                prompt_vector = asyncio.run(embed(prompt, nvidia_key, input_type='query'))
+            passage_vector = asyncio.run(embed(prompt, nvidia_key, input_type='passage'))
+            st.session_state.semantic_memory.add(prompt, passage_vector, 'user')
+            assistant_vector = asyncio.run(embed(reply, nvidia_key, input_type='passage'))
+            st.session_state.semantic_memory.add(reply, assistant_vector, 'assistant')
+            st.session_state.memory_error = ''
+        except Exception as error:
+            st.session_state.memory_error = f'unavailable ({type(error).__name__})'
