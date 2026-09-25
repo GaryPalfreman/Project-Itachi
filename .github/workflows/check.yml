@@ -1,6 +1,8 @@
 name: Check
 on:
   push:
+    branches-ignore:
+      - itachi-knowledge
   pull_request:
 jobs:
   python:
