@@ -48,7 +48,7 @@ def rank(routes: list[ModelRoute], prompt: str, feedback: dict | None = None,
         latency_ms = float(runtime.get('latency_ema_ms', 0.0) or 0.0)
         latency_penalty = min(1.25, latency_ms / 12000.0)
         cooldown_penalty = 100.0 if not runtime.get('available', True) else 0.0
-        reliability = (session_reliability * 0.45) + (runtime_reliability * 0.55)
+        reliability = (session_reliability * 0.70) + (runtime_reliability * 0.30)
         return 2 * bool(match) + 4 * reliability - latency_penalty - cooldown_penalty
     return sorted(routes, key=score, reverse=True)
 
