@@ -81,9 +81,31 @@ def requires_fresh_web(prompt: str) -> bool:
     markers = (
         'latest', 'current', 'today', 'tonight', 'this week', 'recent', 'news',
         'last ', 'most recent', 'winner', 'won ', 'champion', 'result', 'score',
-        'weather', 'price', 'president', 'prime minister', 'ceo', 'version', 'release'
+        'weather', 'price', 'trading at', 'right now', 'live quote', 'market close',
+        'trading day', 'president', 'prime minister', 'ceo', 'version', 'release'
     )
     return any(marker in text for marker in markers)
+
+
+def _wants_sources(prompt: str) -> bool:
+    text = prompt.lower()
+    return any(marker in text for marker in (
+        'with source', 'show source', 'list source', 'include source', 'provide source',
+        'with citation', 'show citation', 'with reference', 'show reference',
+        'include link', 'provide link', 'where did you get',
+    ))
+
+
+def _source_footer(sources: list[str]) -> str:
+    """Render only public HTTP(S) evidence when the user explicitly requests it."""
+    public = []
+    for source in sources:
+        value = str(source or '').strip()
+        if value.startswith(('https://', 'http://')) and value not in public:
+            public.append(value[:1500])
+    if not public:
+        return ''
+    return '\n\nSources:\n' + '\n'.join(f'- {source}' for source in public[:5])
 
 
 async def _independent_views(prompt: str, evidence: str, routes: list, count: int,
@@ -447,15 +469,15 @@ async def run(prompt: str, routes: list, web_key: str = '', allow_web: bool = Fa
                     for r in repos
                 )
                 local_sources.extend(r['url'] for r in repos)
-            except Exception as error:
-                local_findings.append(f'GitHub search unavailable ({type(error).__name__}).')
+            except Exception:
+                local_findings.append('Public repository search is temporarily unavailable.')
         elif action['tool'] in {'rapid_finance', 'rapid_city', 'rapid_word'}:
             try:
                 specialist = await rapid_run_tool(action['tool'], action['input'], rapidapi_key)
                 if specialist:
                     local_findings.append('Specialist evidence: ' + specialist)
-            except Exception as error:
-                local_findings.append(f'RapidAPI specialist unavailable ({type(error).__name__}).')
+            except Exception:
+                local_findings.append('Specialist data is temporarily unavailable.')
         else:
             try:
                 query = action['input']
@@ -479,8 +501,8 @@ async def run(prompt: str, routes: list, web_key: str = '', allow_web: bool = Fa
                     r['url'] for r in results
                     if isinstance(r, dict) and r.get('url')
                 )
-            except Exception as error:
-                local_findings.append(f'Web search failed ({type(error).__name__}).')
+            except Exception:
+                local_findings.append('Fresh web search is temporarily unavailable.')
         return local_findings, local_sources, local_access
 
     tool_results = await asyncio.gather(
@@ -561,8 +583,9 @@ async def run(prompt: str, routes: list, web_key: str = '', allow_web: bool = Fa
                 routes,
                 current_date,
             )
-    # Provenance is retained internally in evidence/sources but is intentionally not
-    # rendered in normal user-facing replies. Sources can be exposed only on explicit request.
+    # Provenance is retained internally in evidence/sources and rendered only when requested.
+    if _wants_sources(prompt):
+        response += _source_footer(sources)
     if access_requests:
         response += '\n\nAccess requests pending review:\n' + '\n'.join(dict.fromkeys(access_requests))
     return (response, used) if return_route else response

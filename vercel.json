@@ -5,5 +5,34 @@
       "maxDuration": 60,
       "excludeFiles": "{backend/tests/**,scripts/**,frontend/**,supabase/**,.github/**,streamlit_app.py,examples/**}"
     }
-  }
+  },
+  "headers": [
+    {
+      "source": "/api/:path*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
+      ]
+    },
+    {
+      "source": "/:path*",
+      "headers": [
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
+      ]
+    }
+  ],
+  "framework": "nextjs"
 }

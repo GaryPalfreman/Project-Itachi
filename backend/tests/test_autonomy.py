@@ -206,6 +206,39 @@ class AutonomousTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn('"tool"', answer)
         self.assertEqual(cascade.await_count, 2)
 
+    async def test_exact_nemotron_sources_prompt_returns_prose_and_public_urls(self):
+        results = [
+            {
+                'title': 'Nemotron release update',
+                'url': 'https://example.org/nemotron-release',
+                'excerpt': 'First current development',
+            },
+            {
+                'title': 'Nemotron platform update',
+                'url': 'https://example.org/nemotron-platform',
+                'excerpt': 'Second current development',
+            },
+        ]
+        leaked = '{"tool":"search","arguments":{"query":"NVIDIA Nemotron latest news 2026"}}'
+        cascade = AsyncMock(side_effect=[
+            (leaked, 'model-a'),
+            ('The two most important developments are the release update and platform update.', 'model-b'),
+        ])
+        with patch.object(autonomy, 'cascade', new=cascade), \
+             patch.object(autonomy, 'search', new=AsyncMock(return_value=results)):
+            answer = await autonomy.run(
+                'Find the latest news about NVIDIA Nemotron and summarize the two most important developments with sources.',
+                [object()],
+                web_key='key',
+                allow_web=True,
+                depth='standard',
+            )
+        self.assertIn('two most important developments', answer.lower())
+        self.assertIn('https://example.org/nemotron-release', answer)
+        self.assertIn('https://example.org/nemotron-platform', answer)
+        self.assertNotIn('"tool"', answer)
+        self.assertNotIn('"arguments"', answer)
+
     async def test_repeated_tool_json_raises_instead_of_leaking(self):
         leaked = '{"tool":"search","arguments":{"query":"NVIDIA Nemotron latest news 2026"}}'
         results = [{'title':'Nemotron update','url':'https://example.org/nemotron','excerpt':'Fresh evidence'}]
