@@ -32,7 +32,8 @@ class SelectionTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_public_reference_has_useful_no_key_paths(self):
         self.assertIn('= 42', await public_reference.reply('calculate 6*7', False))
-        self.assertIn('Enable public reference search', await public_reference.reply('who wrote this', False))
+        with patch.object(public_reference, 'search_learned', return_value=[]):
+            self.assertIn('Enable public reference search', await public_reference.reply('who wrote this', False))
 
     async def test_public_reference_search_escapes_html_and_cites_pages(self):
         def respond(request):
