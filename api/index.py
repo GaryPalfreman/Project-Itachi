@@ -6,7 +6,8 @@ import hmac
 import os
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from backend.app.answer_guard import guaranteed_answer
@@ -20,11 +21,19 @@ from backend.app.public_knowledge import (
     load as load_learned_knowledge,
     search as search_learned_knowledge,
 )
-from backend.app.public_reference import reply as reference_reply
 
 app = FastAPI(title="ITACHI", docs_url=None, redoc_url=None)
 
 LEARNED_KNOWLEDGE = load_learned_knowledge()
+
+
+@app.exception_handler(Exception)
+async def _unhandled_error(_: Request, __: Exception):
+    """Never expose internal exception details or provider failures to browsers."""
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Itachi could not complete the request. Please try again shortly."},
+    )
 
 
 class Turn(BaseModel):
@@ -35,9 +44,9 @@ class Turn(BaseModel):
 class BrowserContext(BaseModel):
     timezone: str = Field(default="UTC", max_length=80)
     locale: str = Field(default="", max_length=40)
-    latitude: float | None = None
-    longitude: float | None = None
-    accuracy: float | None = None
+    latitude: float | None = Field(default=None, ge=-90, le=90)
+    longitude: float | None = Field(default=None, ge=-180, le=180)
+    accuracy: float | None = Field(default=None, ge=0, le=100000)
 
 
 class UnlockRequest(BaseModel):
@@ -173,8 +182,6 @@ async def chat(request: ChatRequest):
         return {"answer": _strip_weather_source(weather)}
 
     routes = _configured_routes()
-    if not routes:
-        return {"answer": await reference_reply(prompt, True)}
 
     fresh = requires_fresh_web(prompt)
     task_override = ""
