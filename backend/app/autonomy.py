@@ -469,15 +469,15 @@ async def run(prompt: str, routes: list, web_key: str = '', allow_web: bool = Fa
                     for r in repos
                 )
                 local_sources.extend(r['url'] for r in repos)
-            except Exception as error:
-                local_findings.append(f'GitHub search unavailable ({type(error).__name__}).')
+            except Exception:
+                local_findings.append('Public repository search is temporarily unavailable.')
         elif action['tool'] in {'rapid_finance', 'rapid_city', 'rapid_word'}:
             try:
                 specialist = await rapid_run_tool(action['tool'], action['input'], rapidapi_key)
                 if specialist:
                     local_findings.append('Specialist evidence: ' + specialist)
-            except Exception as error:
-                local_findings.append(f'RapidAPI specialist unavailable ({type(error).__name__}).')
+            except Exception:
+                local_findings.append('Specialist data is temporarily unavailable.')
         else:
             try:
                 query = action['input']
@@ -501,8 +501,8 @@ async def run(prompt: str, routes: list, web_key: str = '', allow_web: bool = Fa
                     r['url'] for r in results
                     if isinstance(r, dict) and r.get('url')
                 )
-            except Exception as error:
-                local_findings.append(f'Web search failed ({type(error).__name__}).')
+            except Exception:
+                local_findings.append('Fresh web search is temporarily unavailable.')
         return local_findings, local_sources, local_access
 
     tool_results = await asyncio.gather(
