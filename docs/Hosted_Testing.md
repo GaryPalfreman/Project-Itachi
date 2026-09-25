@@ -7,8 +7,9 @@ This is a temporary **testing console**. The full audio-reactive face, WebSocket
 1. Open [Streamlit Community Cloud](https://share.streamlit.io/) and sign in with GitHub.
 2. Choose **Create app → Deploy a public app from GitHub** (repository visibility and app viewing access are separate settings).
 3. Repository: `GaryPalfreman/Project-Itachi`; branch: `main`; main file path: `streamlit_app.py`.
-4. In **Advanced settings**, select Python 3.12 and add secrets for a model endpoint reachable from the cloud. The app cannot reach `127.0.0.1` on your Mac. Start with no secrets to test the interface and search-only mode.
-5. Set app viewing access to **private** before uploading engineering notes. If private access is unavailable for your account, test only with nonsensitive notes. Once deployed, check the chat, upload a small Markdown ZIP, and ask for a term within it.
+4. In **Advanced settings**, select Python 3.12. Deploy **without model secrets** first and verify search-only mode. The app cannot reach `127.0.0.1` on your Mac.
+5. In app settings, set viewing access to **private** before adding model secrets or uploading engineering notes. Streamlit currently allows only one private app per account; if private access is unavailable, test only with nonsensitive notes and do not add a paid provider key to a public test app without access controls.
+6. Add secrets for a model endpoint reachable from the cloud, then check chat with a small Markdown ZIP. Keep the real vault out of the public repository.
 
 Cloud secrets example (replace the provider, model and key with credentials **you** control):
 
