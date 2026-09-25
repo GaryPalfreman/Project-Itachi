@@ -4,7 +4,7 @@ Start with [[Master_Architecture_Blueprint]], then [[Autonomy_and_Permissions]],
 
 Fast start: create a Python virtual environment, install `backend/requirements-voice.txt`, copy `.env.example` to `.env`, run `python3 scripts/local_inventory.py` to inspect your Mac, and run `python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8765`. See [[Deployment_Mac]] for the full sequence.
 
-This is a local prototype. It includes the face, voice routes, model adapters, bounded autonomous research and account-access proposals. Account registration and CAPTCHA handling are not automated. Personal knowledge is disabled by default, and the hosted app has no note importer. JEV connectivity and automatic coding agent execution remain unverified.
+This is a local prototype. It includes the face, voice routes, task-aware model routing, optional free-model catalog discovery, a no-model reference mode, bounded autonomous research and account-access proposals. Model access still needs an authorized provider or a local runtime. Personal knowledge is disabled by default, and the hosted app has no note importer. Account registration and CAPTCHA handling are not automated.
 
 The `/api/graph` endpoint extracts wiki-links between existing Markdown notes. GitHub Actions checks Python, API routes, vault behavior, and JavaScript syntax on each push.
 

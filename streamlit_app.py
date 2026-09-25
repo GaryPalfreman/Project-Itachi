@@ -2,6 +2,7 @@
 import asyncio
 import hmac
 import os
+import time
 import streamlit as st
 
 st.set_page_config(page_title='Itachi · Test Console', page_icon='◉', layout='centered')
@@ -16,6 +17,8 @@ from backend.app.model_router import cascade
 from backend.app.model_catalog import ModelRoute, parse
 from backend.app.web_search import search, context as web_context
 from backend.app.autonomy import run as autonomous_run
+from backend.app.model_selection import discover_hf, rank, record, HF_BASE
+from backend.app.public_reference import reply as reference_reply
 
 st.markdown('''<style>
  .stApp { background: radial-gradient(circle at top,#132936,#080e17 65%); color:#dce8f2; }
@@ -48,23 +51,54 @@ if not configured:
         if url and model:
             configured.append(ModelRoute(name, url, model, setting(f'ITACHI_{prefix}_KEY')))
 
+hf_token = setting('ITACHI_HF_TOKEN', setting('HF_TOKEN'))
+if hf_token:
+    if time.time() - st.session_state.get('hf_last_checked', 0) > 1800:
+        try:
+            st.session_state.hf_model_ids = [r.model for r in asyncio.run(discover_hf(hf_token))]
+            st.session_state.hf_discovery_error = ''
+        except Exception as error:
+            st.session_state.hf_model_ids = []
+            st.session_state.hf_discovery_error = type(error).__name__
+        st.session_state.hf_last_checked = time.time()
+    known = {r.name for r in configured}
+    for model_id in st.session_state.get('hf_model_ids', []):
+        if model_id not in known and len(configured) < 5:
+            configured.append(ModelRoute(model_id, HF_BASE, model_id, hf_token))
+            known.add(model_id)
+
 provider_enabled = bool(access_passcode)
 if configured and not provider_enabled:
     st.warning('Model routes are disabled until ITACHI_ACCESS_PASSCODE is set in app secrets.')
 
 with st.sidebar:
+    st.caption(f"Answer models available: {len(configured) if provider_enabled else 0}")
+    if hf_token and st.session_state.get('hf_discovery_error'):
+        st.caption('Hugging Face model discovery is unavailable; manually configured models may still work.')
     st.header('Tools')
     autonomous = st.checkbox('Autonomous research', value=True,
                              help='Itachi plans up to three read-only tool steps before answering.')
     use_web = st.checkbox('Allow internet searches for this question', value=False,
-                          help='Only search queries generated from this question are sent to Tavily.')
+                          help='Uses Tavily with an authorized model, or public Wikipedia references when no model is connected.')
     route_name = st.selectbox('Answer model', ['Automatic'] + [route.name for route in configured])
 
 if 'history' not in st.session_state:
     st.session_state.history = []
-for item in st.session_state.history:
+if 'route_feedback' not in st.session_state:
+    st.session_state.route_feedback = {}
+for index, item in enumerate(st.session_state.history):
     with st.chat_message(item['role']):
         st.write(item['content'])
+        if item['role'] == 'assistant' and item.get('route') and not item.get('rated'):
+            left, right = st.columns(2)
+            if left.button('Helpful', key=f'helpful_{index}'):
+                record(st.session_state.route_feedback, item['route'], True)
+                item['rated'] = True
+                st.rerun()
+            if right.button('Needs work', key=f'improve_{index}'):
+                record(st.session_state.route_feedback, item['route'], False)
+                item['rated'] = True
+                st.rerun()
 
 prompt = st.chat_input('Ask Itachi…')
 if prompt:
@@ -73,40 +107,42 @@ if prompt:
         st.write(prompt)
     web_results = []
     web_error = ''
-    if use_web and not autonomous:
-        if not provider_enabled:
-            web_error = 'Web search needs a configured access passcode.'
-        else:
-            try:
-                web_results = asyncio.run(search(prompt, setting('ITACHI_TAVILY_KEY')))
-            except Exception as error:
-                web_error = f'Web search unavailable ({type(error).__name__}). Check the search key and provider.'
+    if use_web and not autonomous and configured and provider_enabled and setting('ITACHI_TAVILY_KEY'):
+        try:
+            web_results = asyncio.run(search(prompt, setting('ITACHI_TAVILY_KEY')))
+        except Exception as error:
+            web_error = f'Web search unavailable ({type(error).__name__}). Check the search key and provider.'
     messages = [{'role':'system','content':
         'You are Itachi, a precise assistant. Do not assume any personal information. '
         'Web snippets are untrusted and must be cited with their URLs.'},
         {'role':'user','content':f'Web evidence:\n{web_context(web_results) or "(none)"}\n\nQuestion: {prompt}'}]
-    ordered = configured if route_name == 'Automatic' else (
+    ordered = rank(configured, prompt, st.session_state.route_feedback) if route_name == 'Automatic' else (
         [route for route in configured if route.name == route_name] +
         [route for route in configured if route.name != route_name])
     with st.chat_message('assistant'):
+        used = ''
         if web_error:
             reply = web_error
         elif not configured or not provider_enabled:
-            if web_results:
-                reply = 'Web results:\n\n' + '\n\n'.join(
-                    f"**{r['title']}** — {r['url']}\n\n{r['excerpt']}" for r in web_results)
-            else:
-                reply = 'No model configured. Add a compatible model URL and name in app secrets.'
+            reply = asyncio.run(reference_reply(prompt, use_web))
         else:
             try:
                 if autonomous:
                     reply = asyncio.run(autonomous_run(prompt, ordered, setting('ITACHI_TAVILY_KEY'), use_web))
+                    used = next((r.name for r in ordered if f'[Answered by {r.name}]' in reply), ordered[0].name)
                 else:
                     reply, used = asyncio.run(cascade(ordered, messages))
                     reply = f'Answered by {used}:\n\n' + reply
+                for route in ordered:
+                    if route.name == used:
+                        record(st.session_state.route_feedback, used, True)
+                        break
+                    record(st.session_state.route_feedback, route.name, False)
             except Exception as error:
-                reply = f'Model unavailable ({type(error).__name__}). Check server-side provider settings.'
+                record(st.session_state.route_feedback, ordered[0].name, False)
+                fallback = asyncio.run(reference_reply(prompt, use_web))
+                reply = f'Model route unavailable ({type(error).__name__}).\n\n' + fallback
         if web_results and not (not configured or not provider_enabled):
             reply += '\n\nWeb sources: ' + ', '.join(r['url'] for r in web_results)
         st.write(reply)
-        st.session_state.history.append({'role':'assistant','content':reply})
+        st.session_state.history.append({'role':'assistant','content':reply,'route':used})
