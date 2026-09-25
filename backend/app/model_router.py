@@ -10,15 +10,28 @@ ROUTE_MARKERS = ('model not found', 'unknown model', 'unsupported model',
                  'invalid model', 'does not exist', 'not available')
 
 def may_fallback(error: Exception) -> bool:
+    """Legacy two-route fallback: retry transient/quota/context failures, not auth failures."""
     if isinstance(error, (httpx.TimeoutException, httpx.TransportError)):
         return True
     if isinstance(error, httpx.HTTPStatusError):
         code = error.response.status_code
-        if code in {401, 402, 403, 404, 408, 429, 500, 502, 503, 504}:
+        if code in {402, 408, 429, 500, 502, 503, 504}:
             return True
         if code == 400:
-            text = error.response.text.lower()
-            return any(term in text for term in CONTEXT_MARKERS + ROUTE_MARKERS)
+            return any(term in error.response.text.lower() for term in CONTEXT_MARKERS)
+    return False
+
+
+def may_route_fallback(error: Exception) -> bool:
+    """Multi-route cascade may quarantine route-specific auth/model failures and continue."""
+    if may_fallback(error):
+        return True
+    if isinstance(error, httpx.HTTPStatusError):
+        code = error.response.status_code
+        if code in {401, 403, 404}:
+            return True
+        if code == 400:
+            return any(term in error.response.text.lower() for term in ROUTE_MARKERS)
     return False
 
 async def completion(url: str, model: str, key: str, messages: list[dict]) -> str:
@@ -73,12 +86,12 @@ async def cascade(routes: list, messages: list[dict]) -> tuple[str, str]:
         except Exception as error:
             last = error
             record_failure(health_key, error)
-            if not may_fallback(error):
+            if not may_route_fallback(error):
                 break
 
     if last is None:
         raise RuntimeError('No healthy model routes available')
-    if attempted > 1 and may_fallback(last):
+    if attempted > 1 and may_route_fallback(last):
         raise RuntimeError(f'All healthy model routes unavailable ({type(last).__name__})') from last
     raise last
 
