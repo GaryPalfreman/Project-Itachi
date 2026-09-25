@@ -11,6 +11,33 @@ from .web_search import search, context as web_context
 from .rapidapi_tools import web_search as rapid_web_search
 
 
+def _wants_sources(prompt: str) -> bool:
+    text = prompt.lower()
+    return any(marker in text for marker in (
+        'source', 'sources', 'citation', 'citations', 'reference', 'references',
+        'link', 'links', 'url', 'urls', 'where did you get'
+    ))
+
+
+def _strip_source_footer(answer: str) -> str:
+    """Remove common provider/source footers from ordinary Itachi replies."""
+    text = str(answer or '').strip()
+    markers = (
+        '\n\nWeb sources:',
+        '\n\nSources:',
+        '\n\nSource:',
+        '\nWeb sources:',
+        '\nSources:',
+        '\nSource:',
+    )
+    cut = len(text)
+    for marker in markers:
+        index = text.find(marker)
+        if index >= 0:
+            cut = min(cut, index)
+    return text[:cut].rstrip()
+
+
 def _text(value: object) -> str:
     if value is None:
         return ''
@@ -58,7 +85,7 @@ async def guaranteed_answer(
             answer = _text(result)
             route = ''
         if answer:
-            return answer, route
+            return (answer if _wants_sources(prompt) else _strip_source_footer(answer)), route
     except Exception as error:
         autonomous_error = error
 
@@ -104,7 +131,10 @@ async def guaranteed_answer(
             answer, route = await asyncio.wait_for(cascade(routes, messages), timeout=45)
             answer = _text(answer)
             if answer:
-                return answer, _text(route)
+                return (
+                    answer if _wants_sources(prompt) else _strip_source_footer(answer),
+                    _text(route),
+                )
         except Exception:
             pass
 
@@ -112,7 +142,7 @@ async def guaranteed_answer(
         fallback = await asyncio.wait_for(reference_reply(prompt, bool(allow_web)), timeout=20)
         fallback = _text(fallback)
         if fallback:
-            return fallback, ''
+            return (fallback if _wants_sources(prompt) else _strip_source_footer(fallback)), ''
     except Exception:
         pass
 
