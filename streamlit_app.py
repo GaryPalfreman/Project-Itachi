@@ -341,9 +341,9 @@ with st.sidebar:
     st.caption(f"Learned public knowledge: {len(learned_knowledge)} records")
     st.download_button('Download public catalog', data=json.dumps(snapshot, indent=2),
                        file_name='itachi-public-catalog.json', mime='application/json')
-    st.caption(f"Answer models available: {len(configured) if provider_enabled else 0}")
-    st.caption(f"Nemotron semantic memory: {'ready' if memory_enabled else 'off'}")
-    st.caption(f"JEV decision layer: {'ready' if typesafe_key else 'off'}")
+    st.caption(f"Cognitive engine: {'online' if configured and provider_enabled else 'offline'}")
+    st.caption(f"Semantic memory: {'ready' if memory_enabled else 'off'}")
+    st.caption(f"Decision layer: {'ready' if typesafe_key else 'off'}")
     st.caption(f"Google OAuth bootstrap: {'ready' if google_oauth_ready else 'off'}")
     st.caption(f"Browser timezone: {client_timezone}")
     prior_component = st.session_state.get('itachi_location', {})
@@ -371,9 +371,9 @@ with st.sidebar:
     if st.session_state.memory_error:
         st.caption(f"Memory status: {st.session_state.memory_error}")
     if st.session_state.jev_error:
-        st.caption(f"JEV status: {st.session_state.jev_error}")
+        st.caption(f"Decision status: {st.session_state.jev_error}")
     if hf_token and st.session_state.get('hf_discovery_error'):
-        st.caption('Hugging Face model discovery is unavailable; manually configured models may still work.')
+        st.caption('Optional model discovery is unavailable; configured routes may still work.')
     st.header('Tools')
     autonomous = st.checkbox('Autonomous reasoning & research', value=True,
                              help='Itachi chooses bounded read-only tools, verifies evidence, and can critique deep answers.')
@@ -385,9 +385,18 @@ with st.sidebar:
     )
     use_web = st.checkbox('Allow internet research', value=True,
                           help='JEV and the planner decide when fresh public information is useful. Personal data and secrets are excluded from search queries.')
-    use_memory = st.checkbox('Use Nemotron semantic memory', value=memory_enabled, disabled=not memory_enabled,
-                             help='Embeds this session remotely with NVIDIA Nemotron-3-Embed-1B. Memory stays in this Streamlit session.')
-    route_name = st.selectbox('Answer model', ['Automatic'] + [route.name for route in configured])
+    voice_enabled = st.checkbox(
+        'Voice responses',
+        value=True,
+        help='Speaks Itachi replies using the best calm English voice available in this browser.'
+    )
+    use_memory = st.checkbox(
+        'Use session semantic memory',
+        value=memory_enabled,
+        disabled=not memory_enabled,
+        help='Keeps semantic context for this Streamlit session only.'
+    )
+    route_name = 'Automatic'
 
     if access_passcode and st.session_state.get('authenticated', False):
         with st.expander('Google Drive admin'):
