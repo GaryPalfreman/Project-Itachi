@@ -29,7 +29,8 @@ class PublicCatalogTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(autonomy, 'cascade', new=AsyncMock(side_effect=[(plan,'a'),('Answer','a')])), \
              patch.object(autonomy, 'search_repos', new=AsyncMock(return_value=[item])):
             output = await autonomy.run('Find open source code', [object()], allow_web=True)
-        self.assertIn('https://github.com/example/open', output)
+        self.assertEqual(output, 'Answer')
+        self.assertNotIn('https://github.com/example/open', output)
 
     async def test_refresh_is_allowlisted_and_metadata_only(self):
         with patch.object(refresh_public_catalog, 'catalog_repos',
