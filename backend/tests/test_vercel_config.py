@@ -4,6 +4,14 @@ import unittest
 
 
 class VercelConfigTests(unittest.TestCase):
+    def test_framework_is_explicitly_nextjs(self):
+        config = json.loads(pathlib.Path("vercel.json").read_text(encoding="utf-8"))
+        self.assertEqual(
+            config.get("framework"),
+            "nextjs",
+            "The mixed Next.js/Python project must not be auto-detected as a backend framework.",
+        )
+
     def test_fastapi_entrypoint_is_not_rewritten_internally(self):
         config = json.loads(pathlib.Path("vercel.json").read_text(encoding="utf-8"))
         rewrites = config.get("rewrites", [])
