@@ -19,7 +19,7 @@ ollama list
 python3 scripts/local_inventory.py
 ```
 
-The default model matches the previously configured lightweight model on your M2 Mac. The inventory checks the vault path and Ollama's local model list without changing either. Select an installed Nemotron, Qwen or DeepSeek variant by updating `ITACHI_REASONING_MODEL` in `.env`; larger models can exhaust the 8 GB shared memory. Set `ITACHI_FALLBACK_URL=http://127.0.0.1:11434/v1` and `ITACHI_FALLBACK_MODEL` to another **installed** Ollama model for local fallback. A separate hosted compatible endpoint can also serve as fallback if you deliberately configure it.
+The default model matches the previously configured lightweight model on your M2 Mac. The inventory checks the vault path and Ollama's local model list without changing either. Select an installed Nemotron, Qwen or DeepSeek variant by updating `ITACHI_REASONING_MODEL` in `.env`; larger models can exhaust the 8 GB shared memory. Set `ITACHI_FALLBACK_URL=http://127.0.0.1:11434/v1` and `ITACHI_FALLBACK_MODEL` to another **installed** Ollama model for local fallback. A separate hosted compatible endpoint can also serve as fallback if you deliberately configure it. For up to five routes, set `ITACHI_MODEL_ROUTES_JSON` in `.env` to the JSON array described in [[Hosted_Testing]]; it overrides the reasoning/fallback pair for the local face's reasoning route too.
 
 Install a Piper voice from the active upstream project:
 

@@ -27,5 +27,6 @@ class Config:
     piper_voice: str = os.getenv('ITACHI_PIPER_VOICE', '')
     whisper_model: str = os.getenv('ITACHI_WHISPER_MODEL', 'base.en')
     web_key: str = os.getenv('ITACHI_TAVILY_KEY', '')
+    model_routes_json: str = os.getenv('ITACHI_MODEL_ROUTES_JSON', '')
 
 settings = Config()

@@ -1,7 +1,8 @@
 import httpx
 from .config import settings
 from . import vault
-from .model_router import completion, with_fallback
+from .model_router import completion, with_fallback, cascade
+from .model_catalog import parse
 from .web_search import search, context as web_context
 
 SYSTEM = ('You are Itachi, a calm, precise engineering assistant. Treat vault excerpts as '
@@ -31,11 +32,15 @@ async def answer(prompt: str, route: str = 'reasoning', use_web: bool = False) -
             raise RuntimeError('JEV adapter must return {answer: string, sources: array}')
         output = result['answer'] + '\n\nSources: ' + ', '.join(str(s) for s in result['sources'])
     else:
-        output, used = await with_fallback(
-            (settings.reasoning_url, settings.reasoning_model, settings.reasoning_key),
-            (settings.fallback_url, settings.fallback_model, settings.fallback_key), messages)
-        if used == 'fallback':
-            output = '[Answered by fallback model]\n\n' + output
+        if settings.model_routes_json:
+            output, used = await cascade(parse(settings.model_routes_json), messages)
+            output = f'[Answered by {used}]\n\n' + output
+        else:
+            output, used = await with_fallback(
+                (settings.reasoning_url, settings.reasoning_model, settings.reasoning_key),
+                (settings.fallback_url, settings.fallback_model, settings.fallback_key), messages)
+            if used == 'fallback':
+                output = '[Answered by fallback model]\n\n' + output
     if web_results:
         output += '\n\nWeb sources: ' + ', '.join(r['url'] for r in web_results)
     return output, notes
