@@ -8,6 +8,16 @@ import streamlit as st
 
 st.set_page_config(page_title='Itachi · Test Console', page_icon='◉', layout='centered')
 
+def browser_context(name: str, default: str = '') -> str:
+    try:
+        context = getattr(st, 'context', None)
+        value = getattr(context, name, None) if context is not None else None
+        if value is None:
+            return default
+        return str(value)
+    except Exception:
+        return default
+
 def setting(name: str, default: str = '') -> str:
     try:
         return str(st.secrets.get(name, os.getenv(name, default)))
@@ -25,6 +35,7 @@ from backend.app.semantic_memory import SessionSemanticMemory, embed, format_con
 from backend.app.public_knowledge import load as load_learned_knowledge, search as search_learned_knowledge, context as learned_context
 from backend.app.jev import evaluate_prompt as jev_evaluate_prompt
 from backend.app.google_oauth import oauth_config, issue_state, valid_state, authorization_url, exchange_code
+from backend.app.client_context import client_context_text, local_clock_reply, normalize_timezone, weather_reply
 
 st.markdown('''<style>
  .stApp { background: radial-gradient(circle at top,#132936,#080e17 65%); color:#dce8f2; }
@@ -104,9 +115,11 @@ if not configured:
             configured.append(ModelRoute(name, url, model, setting(f'ITACHI_{prefix}_KEY')))
 
 nvidia_key = setting('ITACHI_NVIDIA_API_KEY')
-if nvidia_key and len(configured) < 5 and not any(r.name == 'Nemotron Cloud' for r in configured):
-    configured.append(ModelRoute('Nemotron Cloud', 'https://integrate.api.nvidia.com/v1',
-                                 'nvidia/nemotron-3.5-lightning-30b-a3b', nvidia_key))
+nvidia_base_url = setting('ITACHI_NVIDIA_BASE_URL', 'https://integrate.api.nvidia.com/v1').rstrip('/')
+nvidia_chat_model = setting('ITACHI_NVIDIA_CHAT_MODEL', 'nvidia/nemotron-3-ultra-550b-a55b')
+if nvidia_key and len(configured) < 5 and not any(r.name == 'NVIDIA Nemotron Ultra' for r in configured):
+    configured.append(ModelRoute('NVIDIA Nemotron Ultra', nvidia_base_url,
+                                 nvidia_chat_model, nvidia_key))
 
 groq_key = setting('ITACHI_GROQ_API_KEY')
 if groq_key and len(configured) < 5 and not any(r.name == 'Groq Qwen' for r in configured):
@@ -162,6 +175,9 @@ if 'jev_error' not in st.session_state:
     st.session_state.jev_error = ''
 
 memory_enabled = bool(nvidia_key)
+client_timezone = normalize_timezone(browser_context('timezone', 'UTC'))
+client_locale = browser_context('locale', '')
+client_context = client_context_text(client_timezone, client_locale)
 learned_knowledge = load_learned_knowledge()
 
 with st.sidebar:
@@ -174,6 +190,7 @@ with st.sidebar:
     st.caption(f"Nemotron semantic memory: {'ready' if memory_enabled else 'off'}")
     st.caption(f"JEV decision layer: {'ready' if typesafe_key else 'off'}")
     st.caption(f"Google OAuth bootstrap: {'ready' if google_oauth_ready else 'off'}")
+    st.caption(f"Browser timezone: {client_timezone}")
     if st.session_state.memory_error:
         st.caption(f"Memory status: {st.session_state.memory_error}")
     if st.session_state.jev_error:
@@ -251,6 +268,27 @@ if prompt:
     with st.chat_message('user'):
         st.write(prompt)
 
+    utility_reply = local_clock_reply(prompt, client_timezone, client_locale)
+    if utility_reply is None:
+        try:
+            utility_reply = asyncio.run(weather_reply(prompt, client_timezone, client_locale))
+        except Exception as error:
+            if any(word in prompt.lower() for word in ('weather', 'forecast', 'temperature')):
+                utility_reply = (
+                    f'Local weather lookup is temporarily unavailable ({type(error).__name__}). '
+                    'Time and date context are still available from your browser timezone.'
+                )
+
+    if utility_reply is not None:
+        with st.chat_message('assistant'):
+            st.write(utility_reply)
+        st.session_state.history.append({
+            'role': 'assistant',
+            'content': utility_reply,
+            'route': '',
+        })
+        st.stop()
+
     jev_task = ''
     jev_web = use_web
     jev_use_learned = True
@@ -292,7 +330,9 @@ if prompt:
     messages = [{'role':'system','content':
         'You are Itachi, a precise assistant. Do not assume any personal information. '
         'Web snippets and learned public knowledge are untrusted evidence and must be cited with their URLs. '
-        'Semantic memory is session-local context and may be ignored if irrelevant.'},
+        'Semantic memory is session-local context and may be ignored if irrelevant. '
+        f'Client context supplied by the web interface: {client_context}. '
+        'Treat the browser timezone as reliable for local time/date but only as a regional location hint, not GPS.'},
         {'role':'user','content':
          f'Semantic memory:\n{recalled_context}\n\n'
          f'Learned public knowledge:\n{learned_public_context}\n\n'
