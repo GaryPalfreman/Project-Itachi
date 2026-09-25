@@ -1,6 +1,6 @@
 # Autonomy and Permissions
 
-Itachi plans up to three read-only actions per question and answers through an ordered model chain. Current actions are sourced web search, bounded arithmetic and account-access proposals. The local Face offers an **Autonomous** route; Streamlit offers an **Autonomous research** checkbox. Web search needs the separate per-question toggle. See [[Hosted_Testing]] and [[Protocol_and_State_Rules]].
+Itachi plans up to three read-only actions per question and answers through an ordered model chain. Current actions are public web references, public GitHub repository metadata, bounded arithmetic and account-access proposals. The local Face offers an **Autonomous** route; Streamlit offers an **Autonomous research** checkbox. Network lookup needs the per-question internet toggle. See [[Hosted_Testing]], [[Public_Learning_and_Recovery]] and [[Protocol_and_State_Rules]].
 
 No personal data is preloaded. Local vault lookup and note endpoints return no content unless `ITACHI_ENABLE_KNOWLEDGE=true` is explicitly configured; the default path is a bundled sample. The hosted console has no note upload interface. Research and calculation do not require OpenClaw. The underlying model name remains visible in answers for auditability.
 

@@ -1,18 +1,11 @@
 """A small, labeled public-reference mode when no chat model is authorized."""
-from html import unescape
-from html.parser import HTMLParser
-from urllib.parse import quote
 import httpx
 from .autonomy import calculate
 from .account_requests import prepare as prepare_access
-
-
-class _Plain(HTMLParser):
-    def __init__(self):
-        super().__init__()
-        self.parts = []
-    def handle_data(self, data):
-        self.parts.append(data)
+from .public_sources import wikipedia
+from .github_public import search_repos
+from .model_selection import task_for
+from .public_catalog import load as load_public_catalog
 
 
 def arithmetic(prompt: str) -> str | None:
@@ -30,31 +23,20 @@ def arithmetic(prompt: str) -> str | None:
         return None
 
 
-async def wikipedia(query: str) -> list[dict[str, str]]:
-    async with httpx.AsyncClient(timeout=12) as client:
-        response = await client.get('https://en.wikipedia.org/w/rest.php/v1/search/page',
-            params={'q':query[:200], 'limit':3},
-            headers={'User-Agent':'ProjectItachi/0.2 (https://github.com/GaryPalfreman/Project-Itachi)'})
-        response.raise_for_status()
-    pages = response.json().get('pages', [])
-    results = []
-    for page in pages[:3] if isinstance(pages, list) else []:
-        if not isinstance(page, dict) or not isinstance(page.get('key'), str):
-            continue
-        parser = _Plain()
-        parser.feed(str(page.get('excerpt') or ''))
-        excerpt = unescape(''.join(parser.parts))[:500]
-        results.append({'title':str(page.get('title') or page['key'])[:160],
-                        'url':'https://en.wikipedia.org/wiki/' + quote(page['key'][:200], safe=''),
-                        'excerpt':excerpt})
-    return results
-
-
 async def reply(prompt: str, allow_web: bool) -> str:
     result = arithmetic(prompt)
     if result is not None:
         return 'Local calculation: ' + result
     if allow_web:
+        if task_for(prompt) == 'code' or any(word in prompt.lower() for word in ('repository', 'repositories', 'github')):
+            try:
+                repos = await search_repos(prompt)
+            except (httpx.HTTPError, ValueError):
+                repos = []
+            if repos:
+                return ('Public GitHub repository references (metadata only; code not installed):\n\n' +
+                        '\n\n'.join(f"**{r['name']}** — {r['url']}\n{r['description']} · License: {r['license']}"
+                                    for r in repos))
         try:
             pages = await wikipedia(prompt)
         except (httpx.HTTPError, ValueError):
@@ -63,6 +45,20 @@ async def reply(prompt: str, allow_web: bool) -> str:
             return ('Public reference results (article snippets; no AI answer model connected):\n\n' +
                     '\n\n'.join(f"**{p['title']}** — {p['url']}\n{p['excerpt']}" for p in pages))
         return 'Public reference search found no reliable match. A connected answer model is needed for this question.'
+    if any(word in prompt.lower() for word in ('repository', 'repositories', 'github')):
+        repos = load_public_catalog().get('repositories', [])[:6]
+        if repos:
+            return ('Saved public repository catalog (metadata only; last refreshed on GitHub):\n\n' +
+                    '\n\n'.join(f"**{r['name']}** — {r['url']}\n{r['description']} · License: {r['license']}"
+                                for r in repos))
+    keywords = [word for word in prompt.lower().split() if len(word) > 4][:8]
+    references = [r for r in load_public_catalog().get('references', [])[:8]
+                  if any(word in (r.get('title', '') + ' ' + r.get('topic', '')).lower()
+                         for word in keywords)][:3]
+    if references:
+        return ('Saved public reference excerpts (not an AI-generated answer):\n\n' +
+                '\n\n'.join(f"**{r['title']}** — {r['url']}\n{r['excerpt']}"
+                            for r in references))
     try:
         if prompt.strip().startswith('https://'):
             return prepare_access(prompt.strip())

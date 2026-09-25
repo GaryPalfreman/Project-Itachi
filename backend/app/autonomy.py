@@ -5,8 +5,11 @@ import operator
 from .model_router import cascade
 from .web_search import search, context as web_context
 from .account_requests import prepare as prepare_account_request
+from .github_public import search_repos
+from .public_sources import wikipedia
 
 PLANNER = ('Plan the request using only these tools: web_search (query string), '
+           'github_search (public repository topic; metadata only), '
            'calculate (arithmetic expression string), and request_access '
            '(public HTTPS homepage URL; propose an account request, never register). Return only JSON of the form '
            '{"actions":[{"tool":"web_search","input":"..."}]}. '
@@ -59,14 +62,12 @@ def actions_from_plan(raw: str, allow_web: bool) -> list[dict[str, str]]:
         return []
     return [{'tool': a['tool'], 'input': a['input'][:300]}
             for a in actions[:3] if isinstance(a, dict)
-            and a.get('tool') in ({'web_search', 'calculate', 'request_access'} if allow_web
+            and a.get('tool') in ({'web_search', 'github_search', 'calculate', 'request_access'} if allow_web
                                   else {'calculate', 'request_access'})
             and isinstance(a.get('input'), str) and a['input'].strip()]
 
 
 async def run(prompt: str, routes: list, web_key: str = '', allow_web: bool = False) -> str:
-    if allow_web and not web_key:
-        raise RuntimeError('Web search is not configured')
     plan, _ = await cascade(routes, [
         {'role':'system', 'content':PLANNER + f' Internet search available: {allow_web}.'},
         {'role':'user', 'content':prompt}])
@@ -84,9 +85,18 @@ async def run(prompt: str, routes: list, web_key: str = '', allow_web: bool = Fa
                 access_requests.append(prepare_account_request(action['input']))
             except ValueError:
                 findings.append('Invalid account access proposal URL; no request prepared.')
+        elif action['tool'] == 'github_search':
+            try:
+                repos = await search_repos(action['input'])
+                findings.extend(f"Repository: {r['name']} | {r['url']} | License: {r['license']} | {r['description']}"
+                                for r in repos)
+                sources.extend(r['url'] for r in repos)
+            except Exception as error:
+                findings.append(f'GitHub search unavailable ({type(error).__name__}).')
         else:
             try:
-                results = await search(action['input'], web_key)
+                results = await (search(action['input'], web_key) if web_key
+                                 else wikipedia(action['input']))
             except Exception as error:
                 findings.append(f'Web search failed ({type(error).__name__}).')
                 continue

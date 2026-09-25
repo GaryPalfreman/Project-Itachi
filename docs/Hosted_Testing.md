@@ -6,8 +6,8 @@ The hosted console contains text chat, autonomous read-only research and model f
 
 1. Select repository `GaryPalfreman/Project-Itachi`, branch `main`, main file `streamlit_app.py`, Python 3.12.
 2. Set the app's viewing access to **private** before adding provider credentials. Add a strong independent `ITACHI_ACCESS_PASSCODE` in app secrets as an additional access gate.
-3. Add one compatible model endpoint or an ordered provider list. Alternatively set `ITACHI_HF_TOKEN` to your own Hugging Face access token to discover currently advertised free, live text chat models. The app cannot reach Ollama at `127.0.0.1` on another computer.
-4. Optionally add `ITACHI_TAVILY_KEY` for internet research. Check **Allow internet searches for this question** when derived search terms may leave the app.
+3. Add one compatible model endpoint or an ordered provider list. Alternatively set `ITACHI_HF_TOKEN` to discover currently advertised free, live chat models, or `ITACHI_NVIDIA_API_KEY` for NVIDIA's currently available hosted Nemotron trial endpoint. Both keys require their own account and are subject to provider terms and limits. The app cannot reach Ollama at `127.0.0.1` on another computer.
+4. Optionally add `ITACHI_TAVILY_KEY` for broader internet research. Without a key, enabled internet lookup uses public Wikipedia and GitHub APIs. Check **Allow internet searches for this question** when derived search terms may leave the app.
 
 Example secrets (replace placeholders with independently authorized provider details):
 
@@ -22,8 +22,8 @@ For a single provider, use `ITACHI_REASONING_URL`, `ITACHI_REASONING_MODEL` and 
 
 With `ITACHI_HF_TOKEN`, Itachi reads the provider's published model catalog at startup and admits only text chat models whose provider currently reports `live` and `is_free: true`. Availability and promotions can change. A Hugging Face token still has account-level credit and usage rules; Itachi cannot create the token or silently use your ChatGPT login. It discovers at most five models and never saves the token to the repository. Route selection estimates the question type, then uses session-only success and explicit helpfulness feedback to adjust ranking. It does **not** retrain or edit model weights.
 
-With **no model route or token**, the hosted console still calculates arithmetic locally. If the internet checkbox is enabled it requests up to three Wikipedia search excerpts, labels them as public references, and cites their page URLs. It does not present those excerpts as a generated AI answer. For general reasoning and writing, add an authorized model in the private app's secrets. Wikipedia search sends the question to Wikimedia; do not include sensitive text.
+With **no model route or token**, the hosted console still calculates arithmetic locally. If the internet checkbox is enabled it requests Wikipedia excerpts or public GitHub repository metadata, labels them as references, and cites URLs. It does not present those excerpts as a generated AI answer. The sidebar also offers a downloadable public source snapshot. For general reasoning and writing, add an authorized model in the private app's secrets. Search sends the question to the public API; do not include sensitive text. See [[Public_Learning_and_Recovery]].
 
 ## Autonomous research
 
-The model chooses up to three read-only actions from `web_search`, `calculate` and `request_access`, then synthesizes an answer. `request_access` prepares a reviewable website proposal without contacting the site or registering an account. Internet search requires the web checkbox and Tavily key. The tools cannot edit files, run commands, access accounts or escalate privileges. See [[Autonomy_and_Permissions]].
+The model chooses up to three read-only actions from `web_search`, `github_search`, `calculate` and `request_access`, then synthesizes an answer. `request_access` prepares a reviewable website proposal without contacting the site or registering an account. Internet search requires the web checkbox; Tavily is optional. The tools cannot edit files, run commands, access accounts or escalate privileges. See [[Autonomy_and_Permissions]].

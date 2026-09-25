@@ -3,6 +3,7 @@ import asyncio
 import hmac
 import os
 import time
+import json
 import streamlit as st
 
 st.set_page_config(page_title='Itachi · Test Console', page_icon='◉', layout='centered')
@@ -19,6 +20,7 @@ from backend.app.web_search import search, context as web_context
 from backend.app.autonomy import run as autonomous_run
 from backend.app.model_selection import discover_hf, rank, record, HF_BASE
 from backend.app.public_reference import reply as reference_reply
+from backend.app.public_catalog import load as load_public_catalog
 
 st.markdown('''<style>
  .stApp { background: radial-gradient(circle at top,#132936,#080e17 65%); color:#dce8f2; }
@@ -51,6 +53,11 @@ if not configured:
         if url and model:
             configured.append(ModelRoute(name, url, model, setting(f'ITACHI_{prefix}_KEY')))
 
+nvidia_key = setting('ITACHI_NVIDIA_API_KEY')
+if nvidia_key and len(configured) < 5 and not any(r.name == 'Nemotron Cloud' for r in configured):
+    configured.append(ModelRoute('Nemotron Cloud', 'https://integrate.api.nvidia.com/v1',
+                                 'nvidia/nemotron-3.5-lightning-30b-a3b', nvidia_key))
+
 hf_token = setting('ITACHI_HF_TOKEN', setting('HF_TOKEN'))
 if hf_token:
     if time.time() - st.session_state.get('hf_last_checked', 0) > 1800:
@@ -72,6 +79,10 @@ if configured and not provider_enabled:
     st.warning('Model routes are disabled until ITACHI_ACCESS_PASSCODE is set in app secrets.')
 
 with st.sidebar:
+    snapshot = load_public_catalog()
+    st.caption(f"Public repository snapshot: {len(snapshot.get('repositories', []))} sources")
+    st.download_button('Download public catalog', data=json.dumps(snapshot, indent=2),
+                       file_name='itachi-public-catalog.json', mime='application/json')
     st.caption(f"Answer models available: {len(configured) if provider_enabled else 0}")
     if hf_token and st.session_state.get('hf_discovery_error'):
         st.caption('Hugging Face model discovery is unavailable; manually configured models may still work.')

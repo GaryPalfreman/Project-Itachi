@@ -1,0 +1,45 @@
+name: Refresh public catalog
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * *'
+permissions:
+  contents: write
+concurrency:
+  group: public-catalog
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'httpx>=0.27,<1'
+      - name: Fetch allowlisted public repository metadata
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python -m scripts.refresh_public_catalog
+      - name: Keep a recovery artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-catalog
+          path: data/public_catalog.json
+          retention-days: 30
+      - name: Save snapshot in this repository
+        run: |
+          git add data/public_catalog.json
+          if ! git diff --cached --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'Refresh public repository catalog'
+            git push
+          fi
+      - name: Optional HTTPS mirrors
+        env:
+          ITACHI_MIRRORS_JSON: ${{ secrets.ITACHI_MIRRORS_JSON }}
+          ITACHI_MIRROR_TOKEN_1: ${{ secrets.ITACHI_MIRROR_TOKEN_1 }}
+          ITACHI_MIRROR_TOKEN_2: ${{ secrets.ITACHI_MIRROR_TOKEN_2 }}
+          ITACHI_MIRROR_TOKEN_3: ${{ secrets.ITACHI_MIRROR_TOKEN_3 }}
+        run: python -m scripts.mirror_public_catalog

@@ -1,0 +1,10 @@
+{
+  "repositories": [
+    "fastapi/fastapi",
+    "streamlit/streamlit",
+    "ollama/ollama",
+    "huggingface/transformers",
+    "SYSTRAN/faster-whisper",
+    "OHF-Voice/piper1-gpl"
+  ]
+}

@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from .config import settings
 from . import vault, speech
+from .public_catalog import load as load_public_catalog
 from .orchestration import answer
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -28,6 +29,10 @@ async def index():
 async def health():
     return {'status':'ready', 'knowledge_enabled':settings.knowledge_enabled, 'voice':bool(settings.piper_voice),
             'openclaw':bool(settings.openclaw_url), 'jev':bool(settings.jev_url)}
+
+@app.get('/api/public-catalog')
+async def public_catalog():
+    return load_public_catalog()
 
 @app.get('/api/notes')
 async def notes(q: str = ''):
