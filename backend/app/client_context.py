@@ -67,7 +67,7 @@ def place_from_timezone(timezone_name: str) -> str:
     return part.replace("_", " ")
 
 
-def client_context_text(timezone_name: str, locale: str = "") -> str:
+def client_context_text(timezone_name: str, locale: str = "", precise_location: bool = False) -> str:
     timezone_name = normalize_timezone(timezone_name)
     place = place_from_timezone(timezone_name)
     pieces = [f"browser timezone={timezone_name}"]
@@ -75,10 +75,13 @@ def client_context_text(timezone_name: str, locale: str = "") -> str:
         pieces.append(f"regional location hint={place}")
     if isinstance(locale, str) and locale.strip():
         pieces.append(f"browser locale={locale.strip()}")
+    if precise_location:
+        pieces.append("precise browser location permission=granted (coordinates kept session-only)")
     return "; ".join(pieces)
 
 
-def local_clock_reply(prompt: str, timezone_name: str, locale: str = "") -> str | None:
+def local_clock_reply(prompt: str, timezone_name: str, locale: str = "", latitude: float | None = None,
+                      longitude: float | None = None, accuracy_m: float | None = None) -> str | None:
     text = prompt.lower().strip()
     local_markers = ("what time", "what is the time", "what's the time", "current time", "time now",
                      "what date", "what is the date", "today's date", "todays date",
@@ -91,11 +94,17 @@ def local_clock_reply(prompt: str, timezone_name: str, locale: str = "") -> str 
     place = place_from_timezone(timezone_name)
 
     if "where am i" in text or "where are you" in text:
+        if isinstance(latitude, (int, float)) and isinstance(longitude, (int, float)):
+            accuracy = f" (accuracy about {accuracy_m:.0f} m)" if isinstance(accuracy_m, (int, float)) else ""
+            return (
+                f"Your browser granted location permission. Your current coordinates are approximately "
+                f"**{latitude:.5f}, {longitude:.5f}**{accuracy}. They are kept only in this session."
+            )
         region = place or timezone_name
         locale_note = f" and locale {locale}" if locale else ""
         return (
             f"Your browser reports timezone **{timezone_name}**, which suggests the "
-            f"regional location **{region}**{locale_note}. This is not precise GPS location."
+            f"regional location **{region}**{locale_note}. Precise location permission is not enabled."
         )
     if "date" in text or "what day" in text:
         return (
