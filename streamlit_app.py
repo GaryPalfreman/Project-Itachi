@@ -448,6 +448,8 @@ client_context = client_context_text(
 
 for index, item in enumerate(st.session_state.history):
     with st.chat_message(item['role']):
+        if item['role'] == 'assistant':
+            itachi_response_label()
         st.write(item['content'])
         if item['role'] == 'assistant' and item.get('route') and not item.get('rated'):
             left, right = st.columns(2)
@@ -465,6 +467,8 @@ if prompt:
     st.session_state.history.append({'role':'user','content':prompt})
     with st.chat_message('user'):
         st.write(prompt)
+
+    render_itachi_face('thinking', voice_enabled=False)
 
     utility_reply = local_clock_reply(
         prompt,
@@ -493,7 +497,10 @@ if prompt:
                 )
 
     if utility_reply is not None:
+        speech_id = str(time.time_ns())
+        render_itachi_face('speaking', utility_reply, speech_id, voice_enabled)
         with st.chat_message('assistant'):
+            itachi_response_label()
             st.write(utility_reply)
         st.session_state.history.append({
             'role': 'assistant',
@@ -577,19 +584,18 @@ if prompt:
                         autonomous_parts.append(f"Learned public knowledge:\n{learned_public_context}")
                     autonomous_parts.append(f"Current question: {prompt}")
                     autonomous_prompt = "\n\n".join(autonomous_parts)
-                    reply = asyncio.run(
+                    reply, used = asyncio.run(
                         autonomous_run(
                             autonomous_prompt,
                             ordered,
                             setting('ITACHI_TAVILY_KEY'),
                             jev_web,
                             depth=answer_depth.lower(),
+                            return_route=True,
                         )
                     )
-                    used = next((r.name for r in ordered if f'[Answered by {r.name}]' in reply), ordered[0].name)
                 else:
                     reply, used = asyncio.run(cascade(ordered, messages))
-                    reply = f'Answered by {used}:\n\n' + reply
                 for route in ordered:
                     if route.name == used:
                         record(st.session_state.route_feedback, used, True)
@@ -603,6 +609,9 @@ if prompt:
         if web_results and not (not configured or not provider_enabled):
             reply += '\n\nWeb sources: ' + ', '.join(r['url'] for r in web_results)
 
+        speech_id = str(time.time_ns())
+        render_itachi_face('speaking', reply, speech_id, voice_enabled)
+        itachi_response_label()
         st.write(reply)
         st.session_state.history.append({'role':'assistant','content':reply,'route':used})
 
