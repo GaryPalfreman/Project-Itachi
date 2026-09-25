@@ -12,6 +12,8 @@ from pathlib import Path
 
 import httpx
 
+from backend.app.google_oauth import oauth_config
+
 ROOT = Path(__file__).resolve().parents[1]
 FILES = [
     ROOT / "data" / "public_catalog.json",
@@ -104,14 +106,24 @@ def upload_file(client: httpx.Client, path: Path, folder_id: str, api_key: str =
 
 
 if __name__ == "__main__":
-    client_id = os.getenv("ITACHI_GOOGLE_CLIENT_ID", "").strip()
-    client_secret = os.getenv("ITACHI_GOOGLE_CLIENT_SECRET", "").strip()
+    raw_oauth = os.getenv("ITACHI_GOOGLE_OAUTH_JSON", "")
     refresh_token = os.getenv("ITACHI_GOOGLE_REFRESH_TOKEN", "").strip()
     folder_id = os.getenv("ITACHI_GOOGLE_DRIVE_FOLDER_ID", DEFAULT_FOLDER_ID).strip() or DEFAULT_FOLDER_ID
     api_key = os.getenv("ITACHI_GOOGLE_API_KEY", "").strip()
 
-    if not all((client_id, client_secret, refresh_token)):
-        print("Google Drive recovery mirror not configured")
+    try:
+        client_id, client_secret, _ = oauth_config(
+            raw_oauth,
+            os.getenv("ITACHI_GOOGLE_CLIENT_ID", ""),
+            os.getenv("ITACHI_GOOGLE_CLIENT_SECRET", ""),
+            os.getenv("ITACHI_GOOGLE_REDIRECT_URI", ""),
+        )
+    except ValueError:
+        print("Google Drive OAuth client is not configured")
+        raise SystemExit(0)
+
+    if not refresh_token:
+        print("Google Drive refresh token is not configured")
         raise SystemExit(0)
 
     token = access_token(client_id, client_secret, refresh_token)
