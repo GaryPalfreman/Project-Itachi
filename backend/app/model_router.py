@@ -71,7 +71,7 @@ async def cascade(routes: list, messages: list[dict]) -> tuple[str, str]:
         if available(f"model:{route.name}")
     ]
     if not candidates:
-        candidates = list(routes)
+        raise RuntimeError('All model routes are temporarily cooling down')
 
     last = None
     attempted = 0
