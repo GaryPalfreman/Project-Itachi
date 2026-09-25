@@ -42,7 +42,7 @@ def parse_decision(payload: dict) -> JevDecision:
 
     route = answers.get("route", {})
     task = route.get("choice") if isinstance(route, dict) else None
-    if task not in TASKS:
+    if not isinstance(task, str) or task not in TASKS:
         task = "general"
 
     web_probability = _probability(answers.get("needs_web"), "noul", 0.0)
