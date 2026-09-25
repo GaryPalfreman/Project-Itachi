@@ -9,9 +9,13 @@ from .web_search import search, context as web_context
 from .account_requests import prepare as prepare_account_request
 from .github_public import search_repos
 from .public_sources import wikipedia
+from .rapidapi_tools import run_tool as rapid_run_tool, web_search as rapid_web_search
 
 PLANNER = ('Plan the request using only these tools: web_search (query string), '
            'github_search (public repository topic; metadata only), '
+           'rapid_finance (stock ticker, company, ETF, forex or crypto query), '
+           'rapid_city (city or place name prefix), '
+           'rapid_word (one English word for dictionary/thesaurus data), '
            'calculate (arithmetic expression string), and request_access '
            '(public HTTPS homepage URL; propose an account request, never register). Return only JSON of the form '
            '{"actions":[{"tool":"web_search","input":"..."}]}. '
@@ -63,7 +67,8 @@ def needs_tools(prompt: str) -> bool:
     text = prompt.lower()
     return requires_fresh_web(prompt) or any(marker in text for marker in (
         'source', 'verify', 'web', 'calculate', 'compute', 'github',
-        'repository', 'research', 'compare'
+        'repository', 'research', 'compare', 'define', 'definition', 'synonym',
+        'antonym', 'stock', 'share price', 'market price', 'ticker', 'population'
     ))
 
 
@@ -136,7 +141,8 @@ def calculate(expression: str) -> float | int:
     return walk(ast.parse(expression, mode='eval').body)
 
 
-def actions_from_plan(raw: str, allow_web: bool, limit: int = 3) -> list[dict[str, str]]:
+def actions_from_plan(raw: str, allow_web: bool, limit: int = 3,
+                      allow_rapidapi: bool = False) -> list[dict[str, str]]:
     try:
         plan = json.loads(raw.strip().removeprefix('```json').removeprefix('```').removesuffix('```').strip())
     except (ValueError, TypeError):
@@ -145,15 +151,20 @@ def actions_from_plan(raw: str, allow_web: bool, limit: int = 3) -> list[dict[st
     if not isinstance(actions, list):
         return []
     limit = max(1, min(int(limit), 5))
+    allowed = {'calculate', 'request_access'}
+    if allow_web:
+        allowed.update({'web_search', 'github_search'})
+    if allow_rapidapi:
+        allowed.update({'rapid_finance', 'rapid_city', 'rapid_word'})
     return [{'tool': a['tool'], 'input': a['input'][:300]}
             for a in actions[:limit] if isinstance(a, dict)
-            and a.get('tool') in ({'web_search', 'github_search', 'calculate', 'request_access'} if allow_web
-                                  else {'calculate', 'request_access'})
+            and a.get('tool') in allowed
             and isinstance(a.get('input'), str) and a['input'].strip()]
 
 
 async def run(prompt: str, routes: list, web_key: str = '', allow_web: bool = False,
-              depth: str = 'auto', return_route: bool = False, extra_context: str = ''):
+              depth: str = 'auto', return_route: bool = False, extra_context: str = '',
+              rapidapi_key: str = ''):
     resolved_depth = depth_for(prompt, depth)
     current_date = datetime.now(timezone.utc).date().isoformat()
     allow_web = bool(allow_web or requires_fresh_web(prompt))
@@ -169,14 +180,22 @@ async def run(prompt: str, routes: list, web_key: str = '', allow_web: bool = Fa
     plan, _ = await cascade(routes, [
         {'role':'system', 'content':PLANNER + f' Current date: {current_date}. '
                                   f'Internet search available: {allow_web}. '
+                                  f'RapidAPI specialist data available: {bool(rapidapi_key)}. '
                                   f'Use at most {action_limit} actions. '
+                                  'Use rapid_finance for live market facts, rapid_city for structured place facts, '
+                                  'and rapid_word for dictionary/thesaurus facts when available. '
                                   'For time-sensitive questions, search for the current result/state, not previews. '
                                   'Prefer official or primary sources for winners, scores, releases and officeholders.'},
         {'role':'user', 'content':prompt}])
     findings = []
     sources = []
     access_requests = []
-    planned_actions = actions_from_plan(plan, allow_web, action_limit)
+    planned_actions = actions_from_plan(
+        plan,
+        allow_web,
+        action_limit,
+        allow_rapidapi=bool(rapidapi_key),
+    )
     if allow_web and requires_fresh_web(prompt) and not any(
         action.get('tool') == 'web_search' for action in planned_actions
     ):
@@ -202,13 +221,31 @@ async def run(prompt: str, routes: list, web_key: str = '', allow_web: bool = Fa
                 sources.extend(r['url'] for r in repos)
             except Exception as error:
                 findings.append(f'GitHub search unavailable ({type(error).__name__}).')
+        elif action['tool'] in {'rapid_finance', 'rapid_city', 'rapid_word'}:
+            try:
+                specialist = await rapid_run_tool(action['tool'], action['input'], rapidapi_key)
+                if specialist:
+                    findings.append('RapidAPI specialist evidence: ' + specialist)
+            except Exception as error:
+                findings.append(f'RapidAPI specialist unavailable ({type(error).__name__}).')
         else:
             try:
                 query = action['input']
                 if requires_fresh_web(prompt) and current_date[:4] not in query:
                     query = f"{query} {current_date[:4]}"
-                results = await (search(query, web_key) if web_key
-                                 else wikipedia(query))
+                results = []
+                if web_key:
+                    try:
+                        results = await search(query, web_key)
+                    except Exception:
+                        results = []
+                if not results and rapidapi_key:
+                    try:
+                        results = await rapid_web_search(query, rapidapi_key)
+                    except Exception:
+                        results = []
+                if not results:
+                    results = await wikipedia(query)
             except Exception as error:
                 findings.append(f'Web search failed ({type(error).__name__}).')
                 continue

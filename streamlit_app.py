@@ -295,6 +295,8 @@ if openrouter_key and len(configured) < 5 and not any(r.name == 'OpenRouter Free
 
 typesafe_key = setting('TYPESAFE_API_KEY', setting('ITACHI_JEV_TOKEN'))
 
+rapidapi_key = setting('ITACHI_RAPIDAPI_KEY')
+
 hf_token = setting('ITACHI_HF_TOKEN', setting('HF_TOKEN'))
 if hf_token:
     if time.time() - st.session_state.get('hf_last_checked', 0) > 1800:
@@ -344,6 +346,7 @@ with st.sidebar:
     st.caption(f"Cognitive engine: {'online' if configured and provider_enabled else 'offline'}")
     st.caption(f"Semantic memory: {'ready' if memory_enabled else 'off'}")
     st.caption(f"Decision layer: {'ready' if typesafe_key else 'off'}")
+    st.caption(f"RapidAPI specialists: {'ready' if rapidapi_key else 'off'}")
     st.caption(f"Google OAuth bootstrap: {'ready' if google_oauth_ready else 'off'}")
     st.caption(f"Browser timezone: {client_timezone}")
     location_value = getattr(face_state, 'location', None)
@@ -551,6 +554,7 @@ if prompt:
                     allow_web=bool(jev_web or requires_fresh_web(prompt)),
                     depth=answer_depth.lower(),
                     extra_context=autonomous_context,
+                    rapidapi_key=rapidapi_key,
                 )
             )
         else:

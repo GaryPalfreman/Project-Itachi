@@ -47,6 +47,31 @@ class AnswerGuardTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(answer, 'Reference answer')
         self.assertEqual(route, '')
 
+    async def test_rapidapi_search_is_secondary_web_fallback(self):
+        results = [{'title':'Current result','url':'https://example.org','excerpt':'fresh'}]
+        with patch.object(
+            answer_guard,
+            'autonomous_run',
+            new=AsyncMock(side_effect=RuntimeError('planner down')),
+        ), patch.object(
+            answer_guard,
+            'rapid_web_search',
+            new=AsyncMock(return_value=results),
+        ) as rapid_search, patch.object(
+            answer_guard,
+            'cascade',
+            new=AsyncMock(return_value=('Direct answer', 'route')),
+        ):
+            answer, _ = await answer_guard.guaranteed_answer(
+                'latest result',
+                [object()],
+                allow_web=True,
+                rapidapi_key='rapid-key',
+            )
+        self.assertIn('Direct answer', answer)
+        self.assertIn('https://example.org', answer)
+        rapid_search.assert_awaited_once()
+
     async def test_guard_never_returns_empty_text(self):
         with patch.object(
             answer_guard,

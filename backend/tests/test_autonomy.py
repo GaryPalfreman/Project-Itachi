@@ -30,6 +30,12 @@ class AutonomousTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(autonomy.requires_fresh_web('What is the latest Python release?'))
         self.assertFalse(autonomy.requires_fresh_web('Explain recursion'))
 
+    def test_rapidapi_tools_are_only_allowed_when_configured(self):
+        raw = '{"actions":[{"tool":"rapid_finance","input":"MSFT"},{"tool":"rapid_city","input":"Melbourne"}]}'
+        self.assertEqual(autonomy.actions_from_plan(raw, True), [])
+        allowed = autonomy.actions_from_plan(raw, True, allow_rapidapi=True)
+        self.assertEqual([item['tool'] for item in allowed], ['rapid_finance', 'rapid_city'])
+
     def test_plan_honors_deep_action_limit(self):
         raw = '{"actions":[' + ','.join(
             '{"tool":"calculate","input":"2+2"}' for _ in range(6)
@@ -50,6 +56,21 @@ class AutonomousTests(unittest.IsolatedAsyncioTestCase):
             reply = await autonomy.run('Get access now with a public account request', [object()], depth='standard')
         self.assertIn('Access requests pending review:', reply)
         self.assertIn('No login was created', reply)
+
+    async def test_planner_can_use_rapidapi_specialist(self):
+        plan = '{"actions":[{"tool":"rapid_finance","input":"Microsoft"}]}'
+        cascade = AsyncMock(side_effect=[(plan, 'planner'), ('Answer', 'model')])
+        with patch.object(autonomy, 'cascade', new=cascade), \
+             patch.object(autonomy, 'rapid_run_tool', new=AsyncMock(return_value='price=500')) as rapid:
+            answer = await autonomy.run(
+                'What is Microsoft stock trading at?',
+                [object()],
+                allow_web=True,
+                depth='standard',
+                rapidapi_key='key',
+            )
+        self.assertIn('Answer', answer)
+        rapid.assert_awaited_once_with('rapid_finance', 'Microsoft', 'key')
 
     async def test_automatic_search_and_answer_without_knowledge(self):
         plan = '{"actions":[{"tool":"web_search","input":"saturn rings"}]}'
