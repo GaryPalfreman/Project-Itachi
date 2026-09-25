@@ -1,12 +1,13 @@
 import unittest
 from unittest.mock import AsyncMock, patch
 
-from app import rapidapi_tools
+from app import rapidapi_tools, runtime_health
 
 
 class RapidApiToolsTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         rapidapi_tools._CACHE.clear()
+        runtime_health.reset()
 
     async def test_finance_lookup_resolves_symbol_then_quote(self):
         search = {"bestMatches": [{"1. symbol": "MSFT", "2. name": "Microsoft Corporation",
