@@ -21,6 +21,7 @@ FILES = [
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 DRIVE_API = "https://www.googleapis.com/drive/v3"
 UPLOAD_API = "https://www.googleapis.com/upload/drive/v3"
+DEFAULT_FOLDER_ID = "1fFi6bHUEgjU5cz9M9V8uYaNme1cGgX37"
 
 
 def access_token(client_id: str, client_secret: str, refresh_token: str) -> str:
@@ -45,7 +46,7 @@ def _quote_query(value: str) -> str:
     return value.replace("\\", "\\\\").replace("'", "\\'")
 
 
-def find_file(client: httpx.Client, name: str, folder_id: str) -> str | None:
+def find_file(client: httpx.Client, name: str, folder_id: str, api_key: str = "") -> str | None:
     clauses = [f"name = '{_quote_query(name)}'", "trashed = false"]
     if folder_id:
         clauses.append(f"'{_quote_query(folder_id)}' in parents")
@@ -56,6 +57,7 @@ def find_file(client: httpx.Client, name: str, folder_id: str) -> str | None:
             "spaces": "drive",
             "fields": "files(id,name)",
             "pageSize": 10,
+            **({"key": api_key} if api_key else {}),
         },
     )
     response.raise_for_status()
@@ -66,13 +68,13 @@ def find_file(client: httpx.Client, name: str, folder_id: str) -> str | None:
     return item.get("id") if isinstance(item, dict) else None
 
 
-def create_metadata(client: httpx.Client, name: str, folder_id: str) -> str:
+def create_metadata(client: httpx.Client, name: str, folder_id: str, api_key: str = "") -> str:
     payload: dict[str, object] = {"name": name}
     if folder_id:
         payload["parents"] = [folder_id]
     response = client.post(
         DRIVE_API + "/files",
-        params={"fields": "id"},
+        params={"fields": "id", **({"key": api_key} if api_key else {})},
         json=payload,
     )
     response.raise_for_status()
@@ -82,14 +84,14 @@ def create_metadata(client: httpx.Client, name: str, folder_id: str) -> str:
     return file_id
 
 
-def upload_file(client: httpx.Client, path: Path, folder_id: str) -> str:
-    file_id = find_file(client, path.name, folder_id)
+def upload_file(client: httpx.Client, path: Path, folder_id: str, api_key: str = "") -> str:
+    file_id = find_file(client, path.name, folder_id, api_key)
     if file_id is None:
-        file_id = create_metadata(client, path.name, folder_id)
+        file_id = create_metadata(client, path.name, folder_id, api_key)
     mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
     response = client.patch(
         UPLOAD_API + f"/files/{file_id}",
-        params={"uploadType": "media"},
+        params={"uploadType": "media", **({"key": api_key} if api_key else {})},
         headers={"Content-Type": mime},
         content=path.read_bytes(),
     )
@@ -101,7 +103,8 @@ if __name__ == "__main__":
     client_id = os.getenv("ITACHI_GOOGLE_CLIENT_ID", "").strip()
     client_secret = os.getenv("ITACHI_GOOGLE_CLIENT_SECRET", "").strip()
     refresh_token = os.getenv("ITACHI_GOOGLE_REFRESH_TOKEN", "").strip()
-    folder_id = os.getenv("ITACHI_GOOGLE_DRIVE_FOLDER_ID", "").strip()
+    folder_id = os.getenv("ITACHI_GOOGLE_DRIVE_FOLDER_ID", DEFAULT_FOLDER_ID).strip() or DEFAULT_FOLDER_ID
+    api_key = os.getenv("ITACHI_GOOGLE_API_KEY", "").strip()
 
     if not all((client_id, client_secret, refresh_token)):
         print("Google Drive recovery mirror not configured")
@@ -114,6 +117,6 @@ if __name__ == "__main__":
         for path in FILES:
             if not path.exists():
                 continue
-            completed.append((path.name, upload_file(client, path, folder_id)))
+            completed.append((path.name, upload_file(client, path, folder_id, api_key)))
 
     print("Google Drive recovery files updated:", json.dumps(completed))
