@@ -80,8 +80,9 @@ def client_context_text(timezone_name: str, locale: str = "") -> str:
 
 def local_clock_reply(prompt: str, timezone_name: str, locale: str = "") -> str | None:
     text = prompt.lower().strip()
-    local_markers = ("what time", "current time", "time now", "what date", "today's date",
-                     "todays date", "what day", "date today", "where am i", "where are you")
+    local_markers = ("what time", "what is the time", "what's the time", "current time", "time now",
+                     "what date", "what is the date", "today's date", "todays date",
+                     "what day", "date today", "where am i", "where are you")
     if not any(marker in text for marker in local_markers):
         return None
 
