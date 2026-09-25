@@ -8,7 +8,7 @@ The hosted console contains text chat, autonomous read-only research and model f
 2. Set the app's viewing access to **private** before adding provider credentials. Add a strong independent `ITACHI_ACCESS_PASSCODE` in app secrets as an additional access gate.
 3. Add one compatible model endpoint or an ordered provider list. Alternatively set `ITACHI_HF_TOKEN` to discover currently advertised free, live chat models, or `ITACHI_NVIDIA_API_KEY` for NVIDIA's currently available hosted Nemotron trial endpoint. Both keys require their own account and are subject to provider terms and limits. The app cannot reach Ollama at `127.0.0.1` on another computer.
 
-You can also add `ITACHI_GROQ_API_KEY` for Groq's Qwen route or `ITACHI_OPENROUTER_API_KEY` for OpenRouter's free-model router. These are optional server-side secrets from separate provider accounts; their free allowances and models may change. Routes are capped at five. See [[Free_Provider_Assessment]].
+You can also add `ITACHI_GROQ_API_KEY`, `ITACHI_GEMINI_API_KEY`, `ITACHI_CEREBRAS_API_KEY`, or `ITACHI_OPENROUTER_API_KEY`. These are optional server-side project credentials from separate providers; their free allowances and models may change. Routes are capped at five. See [[Free_Provider_Assessment]] and [[Cloud_Growth_and_Recovery]].
 4. Optionally add `ITACHI_TAVILY_KEY` for broader internet research. Without a key, enabled internet lookup uses public Wikipedia and GitHub APIs. Check **Allow internet searches for this question** when derived search terms may leave the app.
 
 Example secrets (replace placeholders with independently authorized provider details):
@@ -44,3 +44,12 @@ stored user/assistant turns are embedded with `input_type="passage"`.
 
 This is the integration boundary for a later persistent vector database: replace
 the session store while keeping the hosted Nemotron embedder unchanged.
+
+
+## Continuous cloud learning and recovery
+
+The repository's public-learning workflow runs on main-branch deployments and hourly. It grows a bounded, provenance-carrying corpus from supported public sources and permissively licensed GitHub repository READMEs. Discovered code is never executed.
+
+GitHub remains the primary recoverable copy. If a dedicated Supabase project is configured with repository secrets, the workflow also replicates the public corpus there. The manual recovery workflow can rebuild the checked-in corpus from Supabase.
+
+This does not collect visitor conversations into a shared global memory. User-session semantic memory remains separate from the public web-learning corpus.
