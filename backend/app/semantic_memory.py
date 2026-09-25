@@ -12,6 +12,8 @@ from typing import Iterable
 
 import httpx
 
+from .runtime_health import available, record_failure, record_success
+
 NVIDIA_EMBEDDINGS_URL = "https://integrate.api.nvidia.com/v1/embeddings"
 NEMOTRON_MODEL = "nvidia/nemotron-3-embed-1b"
 NEMOTRON_DIMENSIONS = 2048
@@ -45,10 +47,19 @@ async def embed(
         "Accept": "application/json",
         "Content-Type": "application/json",
     }
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        response = await client.post(url, headers=headers, json=payload)
-        response.raise_for_status()
-        body = response.json()
+    health_key = "external:embeddings"
+    if not available(health_key):
+        raise RuntimeError("Embedding service is temporarily cooling down")
+    started = time.perf_counter()
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            body = response.json()
+        record_success(health_key, (time.perf_counter() - started) * 1000.0)
+    except Exception as error:
+        record_failure(health_key, error)
+        raise
 
     vector = body["data"][0]["embedding"]
     if len(vector) != NEMOTRON_DIMENSIONS:
