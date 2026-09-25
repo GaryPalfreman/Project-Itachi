@@ -8,6 +8,8 @@ This page records which public services can support [[Hosted_Testing]] without p
 | --- | --- | --- |
 | NVIDIA Nemotron | Supported as optional hosted OpenAI-compatible model route. | Create your own NVIDIA developer account and key, then put `ITACHI_NVIDIA_API_KEY` in **private Streamlit secrets**. Trial access and rate limits are provider controlled. |
 | Hugging Face free inference models | Supported through live catalog discovery with a configured `ITACHI_HF_TOKEN`. | An account token and whatever free credits are currently offered; the app checks the published catalog for free live chat models. |
+| Groq Qwen | Supported as optional hosted API route, currently `qwen/qwen3.8-27b`. | Groq account API key in `ITACHI_GROQ_API_KEY`; free-plan requests and tokens are rate limited. |
+| OpenRouter free router | Supported as optional hosted API route, `openrouter/free`. | OpenRouter account API key in `ITACHI_OPENROUTER_API_KEY`; the selected model can change and free requests are limited. |
 | Ollama (Llama, Qwen, DeepSeek, Nemotron variants) | Supported by the local backend as an OpenAI-compatible route. | A machine running Ollama and a pulled compatible model. A cloud Streamlit instance cannot reach your own `localhost`. |
 | Duck.ai | Human-operated browser chat only; no automated route. | Its terms prohibit automated querying and building another AI service on it. |
 | Perchance AI chat | Human-operated browser chat only; no automated route. | Its terms prohibit automated or nonhuman use. |
@@ -32,6 +34,8 @@ None of the services listed above has a general account token that Itachi can is
 ## Provider documentation
 
 - [NVIDIA Nemotron developer endpoint](https://build.nvidia.com/nvidia/nemotron-3.5-lightning-30b-a3b)
+- [Groq OpenAI-compatible endpoint](https://console.groq.com/docs/openai) and [free-plan limits](https://console.groq.com/docs/rate-limits)
+- [OpenRouter free-model router](https://openrouter.ai/docs/guides/routing/routers/free-router) and [free-model limits](https://openrouter.ai/docs/faq)
 - [Duck.ai terms](https://duckduckgo.com/duckai/terms)
 - [Perchance terms](https://perchance.org/terms-of-service)
 - [AskAI.free API](https://askai.free/api)

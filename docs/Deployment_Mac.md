@@ -21,6 +21,8 @@ python3 scripts/local_inventory.py
 
 The inventory checks Ollama's local model list without scanning personal files. Select an installed Nemotron, Qwen or DeepSeek variant by updating `ITACHI_REASONING_MODEL` in `.env`; larger models require sufficient memory. Set `ITACHI_FALLBACK_URL=http://127.0.0.1:11434/v1` and `ITACHI_FALLBACK_MODEL` to another **installed** Ollama model for local fallback. For up to five routes, set `ITACHI_MODEL_ROUTES_JSON` to the JSON array described in [[Hosted_Testing]].
 
+For the Nemotron checkpoint in Downloads and an official Qwen fallback, follow [[Local_Nemotron_and_Qwen]].
+
 Install a Piper voice from the active upstream project:
 
 ```bash

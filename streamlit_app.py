@@ -58,6 +58,16 @@ if nvidia_key and len(configured) < 5 and not any(r.name == 'Nemotron Cloud' for
     configured.append(ModelRoute('Nemotron Cloud', 'https://integrate.api.nvidia.com/v1',
                                  'nvidia/nemotron-3.5-lightning-30b-a3b', nvidia_key))
 
+groq_key = setting('ITACHI_GROQ_API_KEY')
+if groq_key and len(configured) < 5 and not any(r.name == 'Groq Qwen' for r in configured):
+    configured.append(ModelRoute('Groq Qwen', 'https://api.groq.com/openai/v1',
+                                 'qwen/qwen3.8-27b', groq_key))
+
+openrouter_key = setting('ITACHI_OPENROUTER_API_KEY')
+if openrouter_key and len(configured) < 5 and not any(r.name == 'OpenRouter Free' for r in configured):
+    configured.append(ModelRoute('OpenRouter Free', 'https://openrouter.ai/api/v1',
+                                 'openrouter/free', openrouter_key))
+
 hf_token = setting('ITACHI_HF_TOKEN', setting('HF_TOKEN'))
 if hf_token:
     if time.time() - st.session_state.get('hf_last_checked', 0) > 1800:

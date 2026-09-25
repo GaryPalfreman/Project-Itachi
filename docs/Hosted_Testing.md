@@ -7,6 +7,8 @@ The hosted console contains text chat, autonomous read-only research and model f
 1. Select repository `GaryPalfreman/Project-Itachi`, branch `main`, main file `streamlit_app.py`, Python 3.12.
 2. Set the app's viewing access to **private** before adding provider credentials. Add a strong independent `ITACHI_ACCESS_PASSCODE` in app secrets as an additional access gate.
 3. Add one compatible model endpoint or an ordered provider list. Alternatively set `ITACHI_HF_TOKEN` to discover currently advertised free, live chat models, or `ITACHI_NVIDIA_API_KEY` for NVIDIA's currently available hosted Nemotron trial endpoint. Both keys require their own account and are subject to provider terms and limits. The app cannot reach Ollama at `127.0.0.1` on another computer.
+
+You can also add `ITACHI_GROQ_API_KEY` for Groq's Qwen route or `ITACHI_OPENROUTER_API_KEY` for OpenRouter's free-model router. These are optional server-side secrets from separate provider accounts; their free allowances and models may change. Routes are capped at five. See [[Free_Provider_Assessment]].
 4. Optionally add `ITACHI_TAVILY_KEY` for broader internet research. Without a key, enabled internet lookup uses public Wikipedia and GitHub APIs. Check **Allow internet searches for this question** when derived search terms may leave the app.
 
 Example secrets (replace placeholders with independently authorized provider details):
