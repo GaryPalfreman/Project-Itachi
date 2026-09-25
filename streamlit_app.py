@@ -384,7 +384,7 @@ with st.sidebar:
         help='Auto adapts to the question. Quick minimizes model/tool calls. Deep adds broader research and a critique/revision pass.'
     )
     use_web = st.checkbox('Allow internet research', value=True,
-                          help='JEV and the planner decide when fresh public information is useful. Personal data and secrets are excluded from search queries.')
+                          help='Itachi decides when fresh public information is useful. Personal data and secrets are excluded from search queries.')
     voice_enabled = st.checkbox(
         'Voice responses',
         value=True,
