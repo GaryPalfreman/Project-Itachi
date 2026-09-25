@@ -1,5 +1,7 @@
 # Itachi · Local Assistant System
 
+[Open the hosted test console](https://project-itachi.streamlit.app/) · [Hosted setup](docs/Hosted_Testing.md)
+
 Start with [[Master_Architecture_Blueprint]], then [[Deployment_Mac]], [[Protocol_and_State_Rules]], and [[Agent_Assignments]]. These files live in `docs/` and can be copied into an Obsidian vault. The system itself reads the configured vault.
 
 Fast start: create a Python virtual environment, install `backend/requirements-voice.txt`, copy `.env.example` to `.env`, pull `nemotron-mini:4b` with Ollama, and run `python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8765`. See [[Deployment_Mac]] for the full sequence.
