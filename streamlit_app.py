@@ -24,10 +24,20 @@ def setting(name: str, default: str = '') -> str:
     except FileNotFoundError:
         return os.getenv(name, default)
 
+
+def requires_fresh_web(prompt: str) -> bool:
+    """Keep Streamlit boot-compatible with cached autonomy modules during hot reload."""
+    text = prompt.lower() if isinstance(prompt, str) else ''
+    return any(marker in text for marker in (
+        'latest', 'current', 'today', 'tonight', 'this week', 'recent', 'news',
+        'last ', 'most recent', 'winner', 'won ', 'champion', 'result', 'score',
+        'weather', 'price', 'president', 'prime minister', 'ceo', 'version', 'release',
+    ))
+
 from backend.app.model_router import cascade
 from backend.app.model_catalog import ModelRoute, parse
 from backend.app.web_search import search, context as web_context
-from backend.app.autonomy import run as autonomous_run, requires_fresh_web
+from backend.app.autonomy import run as autonomous_run
 from backend.app.model_selection import discover_hf, rank, record, HF_BASE
 from backend.app.public_reference import reply as reference_reply
 from backend.app.public_catalog import load as load_public_catalog
