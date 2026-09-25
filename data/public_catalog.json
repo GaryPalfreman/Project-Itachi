@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-25T11:13:12.954266+00:00",
+  "generated_at": "2026-09-25T11:21:34.848335+00:00",
   "origin": "Public GitHub metadata and attributed Wikipedia excerpts; untrusted until reviewed",
   "repositories": [
     {
@@ -32,7 +32,7 @@
       "description": "🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training. ",
       "license": "Apache-2.0",
       "stars": 166631,
-      "updated": "2026-09-25T10:39:19Z"
+      "updated": "2026-09-25T11:19:00Z"
     },
     {
       "name": "SYSTRAN/faster-whisper",
