@@ -7,3 +7,5 @@ Fast start: create a Python virtual environment, install `backend/requirements-v
 This is a local prototype. It includes the face, voice routes, model adapters and vault read/new-note API. It does not include verified JEV API connectivity, an authenticated internet deployment, or automatic coding agent execution.
 
 The `/api/graph` endpoint extracts wiki-links between existing Markdown notes. GitHub Actions checks Python, API routes, vault behavior, and JavaScript syntax on each push.
+
+For a web-based test before local hardware is ready, run `streamlit_app.py` on [Streamlit Community Cloud](https://share.streamlit.io/). See [[Hosted_Testing]] for private access, model secrets, and read-only vault import. The full UI still runs through FastAPI on a local or protected Docker host.

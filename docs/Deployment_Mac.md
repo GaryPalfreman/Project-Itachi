@@ -55,6 +55,8 @@ Keep the gateway on loopback. Confirm that `curl -sS http://127.0.0.1:18789/v1/m
 
 JEV AI needs an actual endpoint or a small bridge implementing the Itachi adapter contract in [[Master_Architecture_Blueprint]]. Set URL and token only after testing the bridge. Without them the research route reports an explicit configuration error. Source dates and URLs should be included in `sources`.
 
+To test a cloud-accessible version before local hardware is ready, use [[Hosted_Testing]]. That console can switch to a separately configured Llama-compatible provider after a recognized rate, context or availability failure. The local UI can use the same fallback settings from `.env`.
+
 ## References
 
 - [OpenClaw HTTP chat completions](https://docs.openclaw.ai/gateway/openai-http-api)

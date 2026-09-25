@@ -24,6 +24,7 @@ The FastAPI process listens on `127.0.0.1:8765`. It serves the UI, WebSocket, va
 ## Model routes
 
 - `reasoning`: a local Nemotron model behind an OpenAI-compatible endpoint. Default Ollama address `http://127.0.0.1:11434/v1` and model `nemotron-mini:4b`.
+- `fallback`: optional separate Llama or other compatible model. The reasoning route makes one bounded failover attempt on quota, context-length or availability errors. For hosted testing, both configured endpoints must be reachable from the cloud. See [[Hosted_Testing]].
 - `code`: separately configured coding endpoint; a Codex login is not automatically an HTTP model endpoint.
 - `openclaw`: existing gateway's optional HTTP chat completions endpoint. Requires an enabled endpoint and operator token on the same machine.
 - `research`: an **unverified** JEV adapter. `ITACHI_JEV_URL` must accept `{ "query": "..." }` and return `{ "answer": "...", "sources": [...] }`. This is an Itachi adapter contract, not a claim about JEV's native API.

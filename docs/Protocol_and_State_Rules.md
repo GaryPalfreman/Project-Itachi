@@ -21,3 +21,7 @@ Client-only states are `listening`, `transcribing`, and `speaking`. Transitions:
 | `/api/tts` | POST | `{ "text":"..." }` → WAV bytes |
 
 The app is for a trusted local user. Note excerpts are bounded and treated as untrusted data in the model prompt. The vault adapter rejects traversal and symlinks escaping the vault. New-note creation fails for an existing file. Secrets stay in `.env` and are not sent to the browser.
+
+## Model fallback
+
+The `reasoning` route calls its primary once. For a 402, 408, 429, 500, 502, 503, 504, network timeout, transport error, or a recognized 400 context-length error, it calls a configured fallback once. Other errors, including authentication errors, propagate. A fallback answer is labeled. Routes `code`, `openclaw` and `research` do not silently switch providers. The Streamlit testing console uses the same model router.
