@@ -110,7 +110,7 @@ def actions_from_plan(raw: str, allow_web: bool, limit: int = 3) -> list[dict[st
 
 
 async def run(prompt: str, routes: list, web_key: str = '', allow_web: bool = False,
-              depth: str = 'auto') -> str:
+              depth: str = 'auto', return_route: bool = False):
     resolved_depth = depth_for(prompt, depth)
 
     if resolved_depth == 'quick' and not needs_tools(prompt):
@@ -118,7 +118,7 @@ async def run(prompt: str, routes: list, web_key: str = '', allow_web: bool = Fa
             {'role':'system', 'content':ANSWER + ' Give a concise direct answer.'},
             {'role':'user', 'content':prompt},
         ])
-        return f'[Answered by {used}]\n\n{response}'
+        return (response, used) if return_route else response
 
     action_limit = {'quick': 1, 'standard': 3, 'deep': 5}[resolved_depth]
     plan, _ = await cascade(routes, [
@@ -178,4 +178,4 @@ async def run(prompt: str, routes: list, web_key: str = '', allow_web: bool = Fa
         response += '\n\nWeb sources: ' + ', '.join(dict.fromkeys(sources))
     if access_requests:
         response += '\n\nAccess requests pending review:\n' + '\n'.join(dict.fromkeys(access_requests))
-    return f'[Answered by {used}]\n\n{response}'
+    return (response, used) if return_route else response
