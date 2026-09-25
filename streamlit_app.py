@@ -142,6 +142,28 @@ header[data-testid="stHeader"] {display:none !important;}
   margin-bottom:.25rem;
   text-transform:uppercase;
 }
+
+.itachi-thinking-lock {
+  margin:.5rem .1rem .2rem;
+  padding:.7rem .8rem;
+  border:1px solid rgba(111,218,255,.12);
+  border-radius:12px;
+  background:linear-gradient(90deg,rgba(60,144,190,.055),rgba(77,225,218,.035));
+  color:rgba(172,228,247,.82);
+  font-size:.62rem;
+  font-weight:700;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  animation:itachiThinkingPulse 1.45s ease-in-out infinite;
+}
+@keyframes itachiThinkingPulse {
+  0%,100% {opacity:.48; box-shadow:inset 0 0 12px rgba(82,199,235,.02);}
+  50% {opacity:1; box-shadow:inset 0 0 20px rgba(82,199,235,.07);}
+}
+[data-testid="stChatInput"] textarea:disabled {
+  cursor:not-allowed !important;
+  opacity:.55 !important;
+}
 [data-testid="stChatInput"] {
   position:fixed !important;
   right:22px !important;
@@ -226,12 +248,14 @@ def render_itachi_face(mode: str = 'idle', speak_text: str = '', speech_id: str 
 def itachi_response_label() -> None:
     st.markdown('<div class="itachi-response-label">ITACHI</div>', unsafe_allow_html=True)
 
+is_processing = bool(st.session_state.pending_prompt)
+
 face_state = render_itachi_face(
     st.session_state.face_mode,
     st.session_state.face_speak_text,
     st.session_state.face_speech_id,
     voice_enabled=True,
-    mic_enabled=True,
+    mic_enabled=not is_processing,
     input_mode=True,
 )
 
@@ -478,8 +502,16 @@ with st.container(key='itachi_transcript'):
             if item['role'] == 'assistant':
                 itachi_response_label()
             st.write(item['content'])
+    if is_processing:
+        st.markdown(
+            '<div class="itachi-thinking-lock">THINKING // SYNTHESIZING EVIDENCE</div>',
+            unsafe_allow_html=True,
+        )
 
-typed_prompt = st.chat_input('Ask Itachi…')
+typed_prompt = st.chat_input(
+    'Itachi is thinking…' if is_processing else 'Ask Itachi…',
+    disabled=is_processing,
+)
 voice_prompt = ''
 voice_event = getattr(face_state, 'transcript', None)
 if hasattr(voice_event, 'get'):
