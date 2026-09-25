@@ -3,10 +3,13 @@ from unittest.mock import patch
 import httpx
 from app.model_catalog import ModelRoute
 from app.model_selection import rank, task_for, free_hf_routes, record
-from app import public_reference
+from app import public_reference, runtime_health
 
 
 class SelectionTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        runtime_health.reset()
+
     def test_task_routing_and_session_feedback(self):
         routes = [ModelRoute('general', 'https://example.org/v1', 'llama'),
                   ModelRoute('coder', 'https://example.org/v1', 'qwen-coder')]
@@ -19,6 +22,15 @@ class SelectionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(rank(routes, 'a general question', feedback)[0].name, 'general')
         self.assertEqual(rank(routes, 'Write a Python function', feedback)[0].name, 'general')
         self.assertNotIn('prompt', str(feedback))
+
+    def test_rank_prefers_lower_latency_when_reliability_is_equal(self):
+        routes = [
+            ModelRoute('slow', 'https://example.org/v1', 'llama'),
+            ModelRoute('fast', 'https://example.org/v1', 'llama'),
+        ]
+        runtime_health.record_success('model:slow', 12000)
+        runtime_health.record_success('model:fast', 100)
+        self.assertEqual(rank(routes, 'hello')[0].name, 'fast')
 
     def test_rank_ignores_malformed_task_override_and_feedback(self):
         routes = [ModelRoute('general', 'https://example.org/v1', 'llama')]
