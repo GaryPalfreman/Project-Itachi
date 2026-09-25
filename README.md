@@ -13,3 +13,5 @@ Local Nemotron checkpoint inspection and Qwen setup: [[Local_Nemotron_and_Qwen]]
 The `/api/graph` endpoint extracts wiki-links between existing Markdown notes. GitHub Actions checks Python, API routes, vault behavior, and JavaScript syntax on each push.
 
 For a web-based test before local hardware is ready, run `streamlit_app.py` on [Streamlit Community Cloud](https://share.streamlit.io/). See [[Hosted_Testing]] for private access and model secrets. The full UI still runs through FastAPI on a local or protected Docker host.
+
+Cloud-native learning, multi-provider failover and recovery: [[Cloud_Growth_and_Recovery]].
