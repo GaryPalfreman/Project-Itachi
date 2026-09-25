@@ -69,8 +69,22 @@ class AnswerGuardTests(unittest.IsolatedAsyncioTestCase):
                 rapidapi_key='rapid-key',
             )
         self.assertIn('Direct answer', answer)
-        self.assertIn('https://example.org', answer)
+        self.assertNotIn('https://example.org', answer)
         rapid_search.assert_awaited_once()
+
+    async def test_source_footer_is_hidden_unless_requested(self):
+        with patch.object(
+            answer_guard,
+            'autonomous_run',
+            new=AsyncMock(return_value=('Useful answer\n\nSource: WordsAPI https://rapidapi.com/example', 'route')),
+        ):
+            answer, _ = await answer_guard.guaranteed_answer('define resilient', [object()])
+            sourced, _ = await answer_guard.guaranteed_answer(
+                'define resilient and show your sources',
+                [object()],
+            )
+        self.assertEqual(answer, 'Useful answer')
+        self.assertIn('Source:', sourced)
 
     async def test_guard_never_returns_empty_text(self):
         with patch.object(

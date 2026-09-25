@@ -19,6 +19,8 @@ class RapidApiToolsTests(unittest.IsolatedAsyncioTestCase):
             result = await rapidapi_tools.finance_lookup("Microsoft", "key")
         self.assertIn("MSFT", result)
         self.assertIn("500.00", result)
+        self.assertNotIn("Alpha Vantage", result)
+        self.assertNotIn("rapidapi.com", result)
 
     async def test_city_lookup_formats_candidates(self):
         payload = {"data": [{"city": "Melbourne", "region": "Victoria", "country": "Australia",
@@ -28,6 +30,8 @@ class RapidApiToolsTests(unittest.IsolatedAsyncioTestCase):
             result = await rapidapi_tools.city_lookup("Melbourne", "key")
         self.assertIn("Melbourne", result)
         self.assertIn("Australia", result)
+        self.assertNotIn("GeoDB", result)
+        self.assertNotIn("rapidapi.com", result)
 
     async def test_word_lookup_formats_lexical_data(self):
         payload = {"results": [{"definition": "a test definition", "partOfSpeech": "noun",
@@ -37,6 +41,8 @@ class RapidApiToolsTests(unittest.IsolatedAsyncioTestCase):
             result = await rapidapi_tools.word_lookup("test", "key")
         self.assertIn("test definition", result)
         self.assertIn("trial", result)
+        self.assertNotIn("WordsAPI", result)
+        self.assertNotIn("rapidapi.com", result)
 
     async def test_search_normalizes_results(self):
         payload = {"data": [{"title": "Example", "url": "https://example.com", "snippet": "Text"}]}

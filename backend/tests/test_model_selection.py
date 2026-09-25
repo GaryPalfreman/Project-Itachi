@@ -42,7 +42,7 @@ class SelectionTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(public_reference, 'search_learned', return_value=[]):
             self.assertIn('Enable public reference search', await public_reference.reply('who wrote this', False))
 
-    async def test_public_reference_search_escapes_html_and_cites_pages(self):
+    async def test_public_reference_search_hides_links_by_default(self):
         def respond(request):
             self.assertEqual(request.url.host, 'en.wikipedia.org')
             self.assertIn('ProjectItachi', request.headers['User-Agent'])
@@ -51,7 +51,8 @@ class SelectionTests(unittest.IsolatedAsyncioTestCase):
         client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
         with patch.object(public_reference.httpx, 'AsyncClient', return_value=client):
             result = await public_reference.reply('Saturn', True)
-        self.assertIn('https://en.wikipedia.org/wiki/Saturn', result)
+        self.assertNotIn('https://en.wikipedia.org/wiki/Saturn', result)
         self.assertNotIn('<span>', result)
-        self.assertIn('Public reference results:', result)
+        self.assertIn('ringed', result)
+        self.assertNotIn('Public reference results:', result)
         self.assertNotIn('AI answer model', result)
