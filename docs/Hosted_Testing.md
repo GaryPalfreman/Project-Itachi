@@ -29,3 +29,18 @@ With **no model route or token**, the hosted console still calculates arithmetic
 ## Autonomous research
 
 The model chooses up to three read-only actions from `web_search`, `github_search`, `calculate` and `request_access`, then synthesizes an answer. `request_access` prepares a reviewable website proposal without contacting the site or registering an account. Internet search requires the web checkbox; Tavily is optional. The tools cannot edit files, run commands, access accounts or escalate privileges. See [[Autonomy_and_Permissions]].
+
+
+## Hosted Nemotron semantic memory
+
+When `ITACHI_NVIDIA_API_KEY` is set, the Streamlit app can use
+`nvidia/nemotron-3-embed-1b` through NVIDIA's hosted embeddings API. The model
+is not loaded inside Streamlit and no `127.0.0.1` dependency is required.
+
+The current implementation keeps vectors in `st.session_state`, so memory is
+scoped to the active Streamlit session and is not written to GitHub, local disk,
+or a personal knowledge store. Queries are embedded with `input_type="query"`;
+stored user/assistant turns are embedded with `input_type="passage"`.
+
+This is the integration boundary for a later persistent vector database: replace
+the session store while keeping the hosted Nemotron embedder unchanged.
