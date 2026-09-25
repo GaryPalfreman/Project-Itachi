@@ -3,6 +3,7 @@ import ast
 import asyncio
 import json
 import operator
+import re
 from datetime import datetime, timezone
 from .model_router import cascade, completion
 from .web_search import search, context as web_context
@@ -84,6 +85,8 @@ def requires_fresh_web(prompt: str) -> bool:
 
 async def _independent_views(prompt: str, evidence: str, routes: list, count: int,
                              current_date: str) -> list[str]:
+    if count <= 0:
+        return []
     selected = routes[:max(1, min(count, len(routes), 3))]
     if not selected:
         return []
@@ -139,6 +142,715 @@ def calculate(expression: str) -> float | int:
             return value
         raise ValueError('Unsupported expression')
     return walk(ast.parse(expression, mode='eval').body)
+
+
+def _clean_finance_query(text: str) -> str:
+    value = text.strip().strip(' ?.')
+    patterns = (
+        r'(?i)^what(?:\s+is|\'s)?\s+(.+?)\s+(?:stock\s+)?trading(?:\s+at)?(?:\s+right\s+now)?    try:
+        plan = json.loads(raw.strip().removeprefix('```json').removeprefix('```').removesuffix('```').strip())
+    except (ValueError, TypeError):
+        return []
+    actions = plan.get('actions', []) if isinstance(plan, dict) else []
+    if not isinstance(actions, list):
+        return []
+    limit = max(1, min(int(limit), 5))
+    allowed = {'calculate', 'request_access'}
+    if allow_web:
+        allowed.update({'web_search', 'github_search'})
+    if allow_rapidapi:
+        allowed.update({'rapid_finance', 'rapid_city', 'rapid_word'})
+    return [{'tool': a['tool'], 'input': a['input'][:300]}
+            for a in actions[:limit] if isinstance(a, dict)
+            and a.get('tool') in allowed
+            and isinstance(a.get('input'), str) and a['input'].strip()]
+
+
+async def run(prompt: str, routes: list, web_key: str = '', allow_web: bool = False,
+              depth: str = 'auto', return_route: bool = False, extra_context: str = '',
+              rapidapi_key: str = ''):
+    resolved_depth = depth_for(prompt, depth)
+    current_date = datetime.now(timezone.utc).date().isoformat()
+    allow_web = bool(allow_web or requires_fresh_web(prompt))
+
+    if resolved_depth == 'quick' and not needs_tools(prompt):
+        response, used = await cascade(routes, [
+            {'role':'system', 'content':ANSWER + f' Current date: {current_date}. Give a concise direct answer.'},
+            {'role':'user', 'content':prompt},
+        ])
+        return (response, used) if return_route else response
+
+    action_limit = {'quick': 1, 'standard': 4, 'deep': 5}[resolved_depth]
+    planned_actions = deterministic_actions(
+        prompt,
+        allow_web,
+        bool(rapidapi_key),
+        action_limit,
+    )
+
+    # Deterministic specialist routing avoids a planner model round-trip for common factual tasks.
+    # Deep/ambiguous requests still get the planner so Itachi can broaden the research plan.
+    if not planned_actions or resolved_depth == 'deep':
+        plan, _ = await cascade(routes, [
+            {'role':'system', 'content':PLANNER + f' Current date: {current_date}. '
+                                      f'Internet search available: {allow_web}. '
+                                      f'RapidAPI specialist data available: {bool(rapidapi_key)}. '
+                                      f'Use at most {action_limit} actions. '
+                                      'Use rapid_finance for live market facts, rapid_city for structured place facts, '
+                                      'and rapid_word for dictionary/thesaurus facts when available. '
+                                      'For time-sensitive questions, search for the current result/state, not previews. '
+                                      'Prefer official or primary sources for winners, scores, releases and officeholders.'},
+            {'role':'user', 'content':prompt}])
+        planned = actions_from_plan(
+            plan,
+            allow_web,
+            action_limit,
+            allow_rapidapi=bool(rapidapi_key),
+        )
+        for action in planned:
+            if action not in planned_actions and len(planned_actions) < action_limit:
+                planned_actions.append(action)
+
+    findings = []
+    sources = []
+    access_requests = []
+    if allow_web and requires_fresh_web(prompt) and not any(
+        action.get('tool') == 'web_search' for action in planned_actions
+    ):
+        planned_actions = [{'tool':'web_search', 'input':prompt[:300]}] + planned_actions
+        planned_actions = planned_actions[:action_limit]
+
+    async def execute_action(action: dict[str, str]):
+        local_findings: list[str] = []
+        local_sources: list[str] = []
+        local_access: list[str] = []
+        if action['tool'] == 'calculate':
+            try:
+                local_findings.append(f"Calculation {action['input']}: {calculate(action['input'])}")
+            except (ValueError, ZeroDivisionError, OverflowError, SyntaxError):
+                local_findings.append('Calculation unavailable for the chosen expression.')
+        elif action['tool'] == 'request_access':
+            try:
+                local_access.append(prepare_account_request(action['input']))
+            except ValueError:
+                local_findings.append('Invalid account access proposal URL; no request prepared.')
+        elif action['tool'] == 'github_search':
+            try:
+                repos = await search_repos(action['input'])
+                local_findings.extend(
+                    f"Repository: {r['name']} | {r['url']} | License: {r['license']} | {r['description']}"
+                    for r in repos
+                )
+                local_sources.extend(r['url'] for r in repos)
+            except Exception as error:
+                local_findings.append(f'GitHub search unavailable ({type(error).__name__}).')
+        elif action['tool'] in {'rapid_finance', 'rapid_city', 'rapid_word'}:
+            try:
+                specialist = await rapid_run_tool(action['tool'], action['input'], rapidapi_key)
+                if specialist:
+                    local_findings.append('RapidAPI specialist evidence: ' + specialist)
+            except Exception as error:
+                local_findings.append(f'RapidAPI specialist unavailable ({type(error).__name__}).')
+        else:
+            try:
+                query = action['input']
+                if requires_fresh_web(prompt) and current_date[:4] not in query:
+                    query = f"{query} {current_date[:4]}"
+                results = []
+                if web_key:
+                    try:
+                        results = await search(query, web_key)
+                    except Exception:
+                        results = []
+                if not results and rapidapi_key:
+                    try:
+                        results = await rapid_web_search(query, rapidapi_key)
+                    except Exception:
+                        results = []
+                if not results:
+                    results = await wikipedia(query)
+                local_findings.append(web_context(results))
+                local_sources.extend(r['url'] for r in results if isinstance(r, dict) and r.get('url'))
+            except Exception as error:
+                local_findings.append(f'Web search failed ({type(error).__name__}).')
+        return local_findings, local_sources, local_access
+
+    tool_results = await asyncio.gather(
+        *(execute_action(action) for action in planned_actions),
+        return_exceptions=False,
+    )
+    for local_findings, local_sources, local_access in tool_results:
+        findings.extend(local_findings)
+        sources.extend(local_sources)
+        access_requests.extend(local_access)
+
+    evidence_cap = {'quick': 8000, 'standard': 14000, 'deep': 22000}[resolved_depth]
+    evidence_parts = []
+    if extra_context and extra_context.strip():
+        evidence_parts.append(
+            'Internal context (may be stale; corroborate when freshness matters):\n'
+            + extra_context.strip()
+        )
+    if findings:
+        evidence_parts.append('Fresh/tool evidence:\n' + '\n\n'.join(findings))
+    evidence = '\n\n'.join(evidence_parts)[:evidence_cap] or '(no evidence supplied)'
+
+    agent_count = {'quick': 0, 'standard': 1, 'deep': 3}[resolved_depth]
+    views = await _independent_views(prompt, evidence, routes, agent_count, current_date)
+    views_text = '\n\n'.join(
+        f'Independent reasoning view {i}:\n{view}' for i, view in enumerate(views, 1)
+    )[:12000]
+
+    response, used = await cascade(routes, [
+        {'role':'system', 'content':ANSWER + f' Current date: {current_date}.'},
+        {'role':'user', 'content':(
+            f'Request:\n{prompt}\n\nEvidence:\n{evidence}\n\n'
+            f'Independent reasoning views:\n{views_text or "(none)"}'
+        )}])
+
+    if resolved_depth == 'deep':
+        critique, _ = await cascade(routes, [
+            {'role':'system', 'content':CRITIC + f' Current date: {current_date}.'},
+            {'role':'user', 'content':(
+                f'Request:\n{prompt}\n\nEvidence:\n{evidence}\n\n'
+                f'Independent reasoning views:\n{views_text or "(none)"}\n\nDraft:\n{response}'
+            )},
+        ])
+        response, used = await cascade(routes, [
+            {'role':'system', 'content':ANSWER + ' ' + DEEP_SYNTHESIS + f' Current date: {current_date}.'},
+            {'role':'user', 'content':(
+                f'Request:\n{prompt}\n\nEvidence:\n{evidence}\n\n'
+                f'Draft:\n{response}\n\nVerifier notes:\n{critique}'
+            )},
+        ])
+    if sources:
+        response += '\n\nWeb sources: ' + ', '.join(dict.fromkeys(sources))
+    if access_requests:
+        response += '\n\nAccess requests pending review:\n' + '\n'.join(dict.fromkeys(access_requests))
+    return (response, used) if return_route else response
+,
+        r'(?i)^(.+?)\s+(?:stock|share)\s+price(?:\s+right\s+now)?    try:
+        plan = json.loads(raw.strip().removeprefix('```json').removeprefix('```').removesuffix('```').strip())
+    except (ValueError, TypeError):
+        return []
+    actions = plan.get('actions', []) if isinstance(plan, dict) else []
+    if not isinstance(actions, list):
+        return []
+    limit = max(1, min(int(limit), 5))
+    allowed = {'calculate', 'request_access'}
+    if allow_web:
+        allowed.update({'web_search', 'github_search'})
+    if allow_rapidapi:
+        allowed.update({'rapid_finance', 'rapid_city', 'rapid_word'})
+    return [{'tool': a['tool'], 'input': a['input'][:300]}
+            for a in actions[:limit] if isinstance(a, dict)
+            and a.get('tool') in allowed
+            and isinstance(a.get('input'), str) and a['input'].strip()]
+
+
+async def run(prompt: str, routes: list, web_key: str = '', allow_web: bool = False,
+              depth: str = 'auto', return_route: bool = False, extra_context: str = '',
+              rapidapi_key: str = ''):
+    resolved_depth = depth_for(prompt, depth)
+    current_date = datetime.now(timezone.utc).date().isoformat()
+    allow_web = bool(allow_web or requires_fresh_web(prompt))
+
+    if resolved_depth == 'quick' and not needs_tools(prompt):
+        response, used = await cascade(routes, [
+            {'role':'system', 'content':ANSWER + f' Current date: {current_date}. Give a concise direct answer.'},
+            {'role':'user', 'content':prompt},
+        ])
+        return (response, used) if return_route else response
+
+    action_limit = {'quick': 1, 'standard': 3, 'deep': 5}[resolved_depth]
+    plan, _ = await cascade(routes, [
+        {'role':'system', 'content':PLANNER + f' Current date: {current_date}. '
+                                  f'Internet search available: {allow_web}. '
+                                  f'RapidAPI specialist data available: {bool(rapidapi_key)}. '
+                                  f'Use at most {action_limit} actions. '
+                                  'Use rapid_finance for live market facts, rapid_city for structured place facts, '
+                                  'and rapid_word for dictionary/thesaurus facts when available. '
+                                  'For time-sensitive questions, search for the current result/state, not previews. '
+                                  'Prefer official or primary sources for winners, scores, releases and officeholders.'},
+        {'role':'user', 'content':prompt}])
+    findings = []
+    sources = []
+    access_requests = []
+    planned_actions = actions_from_plan(
+        plan,
+        allow_web,
+        action_limit,
+        allow_rapidapi=bool(rapidapi_key),
+    )
+    if allow_web and requires_fresh_web(prompt) and not any(
+        action.get('tool') == 'web_search' for action in planned_actions
+    ):
+        planned_actions = [{'tool':'web_search', 'input':prompt[:300]}] + planned_actions
+        planned_actions = planned_actions[:action_limit]
+
+    for action in planned_actions:
+        if action['tool'] == 'calculate':
+            try:
+                findings.append(f"Calculation {action['input']}: {calculate(action['input'])}")
+            except (ValueError, ZeroDivisionError, OverflowError, SyntaxError):
+                findings.append('Calculation unavailable for the chosen expression.')
+        elif action['tool'] == 'request_access':
+            try:
+                access_requests.append(prepare_account_request(action['input']))
+            except ValueError:
+                findings.append('Invalid account access proposal URL; no request prepared.')
+        elif action['tool'] == 'github_search':
+            try:
+                repos = await search_repos(action['input'])
+                findings.extend(f"Repository: {r['name']} | {r['url']} | License: {r['license']} | {r['description']}"
+                                for r in repos)
+                sources.extend(r['url'] for r in repos)
+            except Exception as error:
+                findings.append(f'GitHub search unavailable ({type(error).__name__}).')
+        elif action['tool'] in {'rapid_finance', 'rapid_city', 'rapid_word'}:
+            try:
+                specialist = await rapid_run_tool(action['tool'], action['input'], rapidapi_key)
+                if specialist:
+                    findings.append('RapidAPI specialist evidence: ' + specialist)
+            except Exception as error:
+                findings.append(f'RapidAPI specialist unavailable ({type(error).__name__}).')
+        else:
+            try:
+                query = action['input']
+                if requires_fresh_web(prompt) and current_date[:4] not in query:
+                    query = f"{query} {current_date[:4]}"
+                results = []
+                if web_key:
+                    try:
+                        results = await search(query, web_key)
+                    except Exception:
+                        results = []
+                if not results and rapidapi_key:
+                    try:
+                        results = await rapid_web_search(query, rapidapi_key)
+                    except Exception:
+                        results = []
+                if not results:
+                    results = await wikipedia(query)
+            except Exception as error:
+                findings.append(f'Web search failed ({type(error).__name__}).')
+                continue
+            findings.append(web_context(results))
+            sources.extend(r['url'] for r in results)
+    evidence_cap = {'quick': 8000, 'standard': 14000, 'deep': 22000}[resolved_depth]
+    evidence_parts = []
+    if extra_context and extra_context.strip():
+        evidence_parts.append(
+            'Internal context (may be stale; corroborate when freshness matters):\n'
+            + extra_context.strip()
+        )
+    if findings:
+        evidence_parts.append('Fresh/tool evidence:\n' + '\n\n'.join(findings))
+    evidence = '\n\n'.join(evidence_parts)[:evidence_cap] or '(no evidence supplied)'
+
+    agent_count = {'quick': 1, 'standard': 2, 'deep': 3}[resolved_depth]
+    views = await _independent_views(prompt, evidence, routes, agent_count, current_date)
+    views_text = '\n\n'.join(
+        f'Independent reasoning view {i}:\n{view}' for i, view in enumerate(views, 1)
+    )[:12000]
+
+    response, used = await cascade(routes, [
+        {'role':'system', 'content':ANSWER + f' Current date: {current_date}.'},
+        {'role':'user', 'content':(
+            f'Request:\n{prompt}\n\nEvidence:\n{evidence}\n\n'
+            f'Independent reasoning views:\n{views_text or "(none)"}'
+        )}])
+
+    if resolved_depth == 'deep':
+        critique, _ = await cascade(routes, [
+            {'role':'system', 'content':CRITIC + f' Current date: {current_date}.'},
+            {'role':'user', 'content':(
+                f'Request:\n{prompt}\n\nEvidence:\n{evidence}\n\n'
+                f'Independent reasoning views:\n{views_text or "(none)"}\n\nDraft:\n{response}'
+            )},
+        ])
+        response, used = await cascade(routes, [
+            {'role':'system', 'content':ANSWER + ' ' + DEEP_SYNTHESIS + f' Current date: {current_date}.'},
+            {'role':'user', 'content':(
+                f'Request:\n{prompt}\n\nEvidence:\n{evidence}\n\n'
+                f'Draft:\n{response}\n\nVerifier notes:\n{critique}'
+            )},
+        ])
+    if sources:
+        response += '\n\nWeb sources: ' + ', '.join(dict.fromkeys(sources))
+    if access_requests:
+        response += '\n\nAccess requests pending review:\n' + '\n'.join(dict.fromkeys(access_requests))
+    return (response, used) if return_route else response
+,
+        r'(?i)^price\s+of\s+(.+?)(?:\s+stock|\s+shares)?    try:
+        plan = json.loads(raw.strip().removeprefix('```json').removeprefix('```').removesuffix('```').strip())
+    except (ValueError, TypeError):
+        return []
+    actions = plan.get('actions', []) if isinstance(plan, dict) else []
+    if not isinstance(actions, list):
+        return []
+    limit = max(1, min(int(limit), 5))
+    allowed = {'calculate', 'request_access'}
+    if allow_web:
+        allowed.update({'web_search', 'github_search'})
+    if allow_rapidapi:
+        allowed.update({'rapid_finance', 'rapid_city', 'rapid_word'})
+    return [{'tool': a['tool'], 'input': a['input'][:300]}
+            for a in actions[:limit] if isinstance(a, dict)
+            and a.get('tool') in allowed
+            and isinstance(a.get('input'), str) and a['input'].strip()]
+
+
+async def run(prompt: str, routes: list, web_key: str = '', allow_web: bool = False,
+              depth: str = 'auto', return_route: bool = False, extra_context: str = '',
+              rapidapi_key: str = ''):
+    resolved_depth = depth_for(prompt, depth)
+    current_date = datetime.now(timezone.utc).date().isoformat()
+    allow_web = bool(allow_web or requires_fresh_web(prompt))
+
+    if resolved_depth == 'quick' and not needs_tools(prompt):
+        response, used = await cascade(routes, [
+            {'role':'system', 'content':ANSWER + f' Current date: {current_date}. Give a concise direct answer.'},
+            {'role':'user', 'content':prompt},
+        ])
+        return (response, used) if return_route else response
+
+    action_limit = {'quick': 1, 'standard': 3, 'deep': 5}[resolved_depth]
+    plan, _ = await cascade(routes, [
+        {'role':'system', 'content':PLANNER + f' Current date: {current_date}. '
+                                  f'Internet search available: {allow_web}. '
+                                  f'RapidAPI specialist data available: {bool(rapidapi_key)}. '
+                                  f'Use at most {action_limit} actions. '
+                                  'Use rapid_finance for live market facts, rapid_city for structured place facts, '
+                                  'and rapid_word for dictionary/thesaurus facts when available. '
+                                  'For time-sensitive questions, search for the current result/state, not previews. '
+                                  'Prefer official or primary sources for winners, scores, releases and officeholders.'},
+        {'role':'user', 'content':prompt}])
+    findings = []
+    sources = []
+    access_requests = []
+    planned_actions = actions_from_plan(
+        plan,
+        allow_web,
+        action_limit,
+        allow_rapidapi=bool(rapidapi_key),
+    )
+    if allow_web and requires_fresh_web(prompt) and not any(
+        action.get('tool') == 'web_search' for action in planned_actions
+    ):
+        planned_actions = [{'tool':'web_search', 'input':prompt[:300]}] + planned_actions
+        planned_actions = planned_actions[:action_limit]
+
+    for action in planned_actions:
+        if action['tool'] == 'calculate':
+            try:
+                findings.append(f"Calculation {action['input']}: {calculate(action['input'])}")
+            except (ValueError, ZeroDivisionError, OverflowError, SyntaxError):
+                findings.append('Calculation unavailable for the chosen expression.')
+        elif action['tool'] == 'request_access':
+            try:
+                access_requests.append(prepare_account_request(action['input']))
+            except ValueError:
+                findings.append('Invalid account access proposal URL; no request prepared.')
+        elif action['tool'] == 'github_search':
+            try:
+                repos = await search_repos(action['input'])
+                findings.extend(f"Repository: {r['name']} | {r['url']} | License: {r['license']} | {r['description']}"
+                                for r in repos)
+                sources.extend(r['url'] for r in repos)
+            except Exception as error:
+                findings.append(f'GitHub search unavailable ({type(error).__name__}).')
+        elif action['tool'] in {'rapid_finance', 'rapid_city', 'rapid_word'}:
+            try:
+                specialist = await rapid_run_tool(action['tool'], action['input'], rapidapi_key)
+                if specialist:
+                    findings.append('RapidAPI specialist evidence: ' + specialist)
+            except Exception as error:
+                findings.append(f'RapidAPI specialist unavailable ({type(error).__name__}).')
+        else:
+            try:
+                query = action['input']
+                if requires_fresh_web(prompt) and current_date[:4] not in query:
+                    query = f"{query} {current_date[:4]}"
+                results = []
+                if web_key:
+                    try:
+                        results = await search(query, web_key)
+                    except Exception:
+                        results = []
+                if not results and rapidapi_key:
+                    try:
+                        results = await rapid_web_search(query, rapidapi_key)
+                    except Exception:
+                        results = []
+                if not results:
+                    results = await wikipedia(query)
+            except Exception as error:
+                findings.append(f'Web search failed ({type(error).__name__}).')
+                continue
+            findings.append(web_context(results))
+            sources.extend(r['url'] for r in results)
+    evidence_cap = {'quick': 8000, 'standard': 14000, 'deep': 22000}[resolved_depth]
+    evidence_parts = []
+    if extra_context and extra_context.strip():
+        evidence_parts.append(
+            'Internal context (may be stale; corroborate when freshness matters):\n'
+            + extra_context.strip()
+        )
+    if findings:
+        evidence_parts.append('Fresh/tool evidence:\n' + '\n\n'.join(findings))
+    evidence = '\n\n'.join(evidence_parts)[:evidence_cap] or '(no evidence supplied)'
+
+    agent_count = {'quick': 1, 'standard': 2, 'deep': 3}[resolved_depth]
+    views = await _independent_views(prompt, evidence, routes, agent_count, current_date)
+    views_text = '\n\n'.join(
+        f'Independent reasoning view {i}:\n{view}' for i, view in enumerate(views, 1)
+    )[:12000]
+
+    response, used = await cascade(routes, [
+        {'role':'system', 'content':ANSWER + f' Current date: {current_date}.'},
+        {'role':'user', 'content':(
+            f'Request:\n{prompt}\n\nEvidence:\n{evidence}\n\n'
+            f'Independent reasoning views:\n{views_text or "(none)"}'
+        )}])
+
+    if resolved_depth == 'deep':
+        critique, _ = await cascade(routes, [
+            {'role':'system', 'content':CRITIC + f' Current date: {current_date}.'},
+            {'role':'user', 'content':(
+                f'Request:\n{prompt}\n\nEvidence:\n{evidence}\n\n'
+                f'Independent reasoning views:\n{views_text or "(none)"}\n\nDraft:\n{response}'
+            )},
+        ])
+        response, used = await cascade(routes, [
+            {'role':'system', 'content':ANSWER + ' ' + DEEP_SYNTHESIS + f' Current date: {current_date}.'},
+            {'role':'user', 'content':(
+                f'Request:\n{prompt}\n\nEvidence:\n{evidence}\n\n'
+                f'Draft:\n{response}\n\nVerifier notes:\n{critique}'
+            )},
+        ])
+    if sources:
+        response += '\n\nWeb sources: ' + ', '.join(dict.fromkeys(sources))
+    if access_requests:
+        response += '\n\nAccess requests pending review:\n' + '\n'.join(dict.fromkeys(access_requests))
+    return (response, used) if return_route else response
+,
+    )
+    for pattern in patterns:
+        match = re.match(pattern, value)
+        if match:
+            return match.group(1).strip()
+    return value[:100]
+
+
+def _clean_city_query(text: str) -> str:
+    value = text.strip().strip(' ?.')
+    match = re.search(
+        r'(?i)(?:structured\s+information|city\s+information|population)\s+(?:about|for|of)\s+(.+)    try:
+        plan = json.loads(raw.strip().removeprefix('```json').removeprefix('```').removesuffix('```').strip())
+    except (ValueError, TypeError):
+        return []
+    actions = plan.get('actions', []) if isinstance(plan, dict) else []
+    if not isinstance(actions, list):
+        return []
+    limit = max(1, min(int(limit), 5))
+    allowed = {'calculate', 'request_access'}
+    if allow_web:
+        allowed.update({'web_search', 'github_search'})
+    if allow_rapidapi:
+        allowed.update({'rapid_finance', 'rapid_city', 'rapid_word'})
+    return [{'tool': a['tool'], 'input': a['input'][:300]}
+            for a in actions[:limit] if isinstance(a, dict)
+            and a.get('tool') in allowed
+            and isinstance(a.get('input'), str) and a['input'].strip()]
+
+
+async def run(prompt: str, routes: list, web_key: str = '', allow_web: bool = False,
+              depth: str = 'auto', return_route: bool = False, extra_context: str = '',
+              rapidapi_key: str = ''):
+    resolved_depth = depth_for(prompt, depth)
+    current_date = datetime.now(timezone.utc).date().isoformat()
+    allow_web = bool(allow_web or requires_fresh_web(prompt))
+
+    if resolved_depth == 'quick' and not needs_tools(prompt):
+        response, used = await cascade(routes, [
+            {'role':'system', 'content':ANSWER + f' Current date: {current_date}. Give a concise direct answer.'},
+            {'role':'user', 'content':prompt},
+        ])
+        return (response, used) if return_route else response
+
+    action_limit = {'quick': 1, 'standard': 3, 'deep': 5}[resolved_depth]
+    plan, _ = await cascade(routes, [
+        {'role':'system', 'content':PLANNER + f' Current date: {current_date}. '
+                                  f'Internet search available: {allow_web}. '
+                                  f'RapidAPI specialist data available: {bool(rapidapi_key)}. '
+                                  f'Use at most {action_limit} actions. '
+                                  'Use rapid_finance for live market facts, rapid_city for structured place facts, '
+                                  'and rapid_word for dictionary/thesaurus facts when available. '
+                                  'For time-sensitive questions, search for the current result/state, not previews. '
+                                  'Prefer official or primary sources for winners, scores, releases and officeholders.'},
+        {'role':'user', 'content':prompt}])
+    findings = []
+    sources = []
+    access_requests = []
+    planned_actions = actions_from_plan(
+        plan,
+        allow_web,
+        action_limit,
+        allow_rapidapi=bool(rapidapi_key),
+    )
+    if allow_web and requires_fresh_web(prompt) and not any(
+        action.get('tool') == 'web_search' for action in planned_actions
+    ):
+        planned_actions = [{'tool':'web_search', 'input':prompt[:300]}] + planned_actions
+        planned_actions = planned_actions[:action_limit]
+
+    for action in planned_actions:
+        if action['tool'] == 'calculate':
+            try:
+                findings.append(f"Calculation {action['input']}: {calculate(action['input'])}")
+            except (ValueError, ZeroDivisionError, OverflowError, SyntaxError):
+                findings.append('Calculation unavailable for the chosen expression.')
+        elif action['tool'] == 'request_access':
+            try:
+                access_requests.append(prepare_account_request(action['input']))
+            except ValueError:
+                findings.append('Invalid account access proposal URL; no request prepared.')
+        elif action['tool'] == 'github_search':
+            try:
+                repos = await search_repos(action['input'])
+                findings.extend(f"Repository: {r['name']} | {r['url']} | License: {r['license']} | {r['description']}"
+                                for r in repos)
+                sources.extend(r['url'] for r in repos)
+            except Exception as error:
+                findings.append(f'GitHub search unavailable ({type(error).__name__}).')
+        elif action['tool'] in {'rapid_finance', 'rapid_city', 'rapid_word'}:
+            try:
+                specialist = await rapid_run_tool(action['tool'], action['input'], rapidapi_key)
+                if specialist:
+                    findings.append('RapidAPI specialist evidence: ' + specialist)
+            except Exception as error:
+                findings.append(f'RapidAPI specialist unavailable ({type(error).__name__}).')
+        else:
+            try:
+                query = action['input']
+                if requires_fresh_web(prompt) and current_date[:4] not in query:
+                    query = f"{query} {current_date[:4]}"
+                results = []
+                if web_key:
+                    try:
+                        results = await search(query, web_key)
+                    except Exception:
+                        results = []
+                if not results and rapidapi_key:
+                    try:
+                        results = await rapid_web_search(query, rapidapi_key)
+                    except Exception:
+                        results = []
+                if not results:
+                    results = await wikipedia(query)
+            except Exception as error:
+                findings.append(f'Web search failed ({type(error).__name__}).')
+                continue
+            findings.append(web_context(results))
+            sources.extend(r['url'] for r in results)
+    evidence_cap = {'quick': 8000, 'standard': 14000, 'deep': 22000}[resolved_depth]
+    evidence_parts = []
+    if extra_context and extra_context.strip():
+        evidence_parts.append(
+            'Internal context (may be stale; corroborate when freshness matters):\n'
+            + extra_context.strip()
+        )
+    if findings:
+        evidence_parts.append('Fresh/tool evidence:\n' + '\n\n'.join(findings))
+    evidence = '\n\n'.join(evidence_parts)[:evidence_cap] or '(no evidence supplied)'
+
+    agent_count = {'quick': 1, 'standard': 2, 'deep': 3}[resolved_depth]
+    views = await _independent_views(prompt, evidence, routes, agent_count, current_date)
+    views_text = '\n\n'.join(
+        f'Independent reasoning view {i}:\n{view}' for i, view in enumerate(views, 1)
+    )[:12000]
+
+    response, used = await cascade(routes, [
+        {'role':'system', 'content':ANSWER + f' Current date: {current_date}.'},
+        {'role':'user', 'content':(
+            f'Request:\n{prompt}\n\nEvidence:\n{evidence}\n\n'
+            f'Independent reasoning views:\n{views_text or "(none)"}'
+        )}])
+
+    if resolved_depth == 'deep':
+        critique, _ = await cascade(routes, [
+            {'role':'system', 'content':CRITIC + f' Current date: {current_date}.'},
+            {'role':'user', 'content':(
+                f'Request:\n{prompt}\n\nEvidence:\n{evidence}\n\n'
+                f'Independent reasoning views:\n{views_text or "(none)"}\n\nDraft:\n{response}'
+            )},
+        ])
+        response, used = await cascade(routes, [
+            {'role':'system', 'content':ANSWER + ' ' + DEEP_SYNTHESIS + f' Current date: {current_date}.'},
+            {'role':'user', 'content':(
+                f'Request:\n{prompt}\n\nEvidence:\n{evidence}\n\n'
+                f'Draft:\n{response}\n\nVerifier notes:\n{critique}'
+            )},
+        ])
+    if sources:
+        response += '\n\nWeb sources: ' + ', '.join(dict.fromkeys(sources))
+    if access_requests:
+        response += '\n\nAccess requests pending review:\n' + '\n'.join(dict.fromkeys(access_requests))
+    return (response, used) if return_route else response
+,
+        value,
+    )
+    return (match.group(1).strip() if match else value)[:100]
+
+
+def _clean_word_query(text: str) -> str:
+    value = text.strip().strip(' ?.')
+    match = re.search(
+        r'(?i)(?:define|definition\s+of|meaning\s+of|synonyms?\s+(?:for|of))\s+["“”\']?([A-Za-z-]+)',
+        value,
+    )
+    return (match.group(1) if match else value.split()[0])[:80]
+
+
+def deterministic_actions(prompt: str, allow_web: bool, allow_rapidapi: bool,
+                          limit: int = 4) -> list[dict[str, str]]:
+    """Route obvious specialist/current requests without spending a planner model call."""
+    segments = [
+        part.strip() for part in re.split(r'[\n\r]+', prompt)
+        if part.strip()
+    ] or [prompt.strip()]
+    actions: list[dict[str, str]] = []
+
+    def add(tool: str, value: str):
+        item = {'tool': tool, 'input': value[:300]}
+        if value.strip() and item not in actions and len(actions) < limit:
+            actions.append(item)
+
+    for segment in segments:
+        text = segment.lower()
+        if allow_rapidapi and any(marker in text for marker in (
+            'trading at', 'stock price', 'share price', 'market price', 'ticker'
+        )):
+            add('rapid_finance', _clean_finance_query(segment))
+            continue
+        if allow_rapidapi and (
+            'structured information about' in text
+            or 'city information about' in text
+            or text.startswith('population of ')
+        ):
+            add('rapid_city', _clean_city_query(segment))
+            continue
+        if allow_rapidapi and any(marker in text for marker in (
+            'define ', 'definition of ', 'meaning of ', 'synonym for ', 'synonyms for ',
+            'synonym of ', 'synonyms of '
+        )):
+            add('rapid_word', _clean_word_query(segment))
+            continue
+        if allow_web and requires_fresh_web(segment):
+            add('web_search', segment)
+
+    return actions
 
 
 def actions_from_plan(raw: str, allow_web: bool, limit: int = 3,
