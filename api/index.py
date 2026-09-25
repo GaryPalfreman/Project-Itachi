@@ -81,7 +81,10 @@ def _configured_routes() -> list[ModelRoute]:
     raw = _setting("ITACHI_MODEL_ROUTES_JSON")
     if raw:
         try:
-            routes = parse(raw)
+            routes = [
+                route for route in parse(raw)
+                if route.url.startswith("https://")
+            ]
         except ValueError:
             routes = []
 
