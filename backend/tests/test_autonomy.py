@@ -133,6 +133,46 @@ class AutonomousTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(key, 'key')
 
 
+    def test_control_payload_detection_catches_tool_json(self):
+        payload = '{"tool":"search","arguments":{"query":"NVIDIA Nemotron latest news 2026","max_results":10}}'
+        self.assertTrue(autonomy.is_control_payload(payload))
+        self.assertTrue(autonomy.is_control_payload('{"actions":[{"tool":"web_search","input":"x"}]}'))
+        self.assertFalse(autonomy.is_control_payload('NVIDIA announced two new Nemotron developments.'))
+
+    async def test_final_tool_json_is_retried_as_prose(self):
+        results = [{'title':'Nemotron update','url':'https://example.org/nemotron','excerpt':'Fresh evidence'}]
+        leaked = '{"tool":"search","arguments":{"query":"NVIDIA Nemotron latest news 2026","max_results":10}}'
+        cascade = AsyncMock(side_effect=[
+            (leaked, 'model-a'),
+            ('Two important Nemotron developments are available in the current evidence.', 'model-b'),
+        ])
+        with patch.object(autonomy, 'cascade', new=cascade), \
+             patch.object(autonomy, 'search', new=AsyncMock(return_value=results)):
+            answer = await autonomy.run(
+                'Find the latest news about NVIDIA Nemotron and summarize the two most important developments.',
+                [object()],
+                web_key='key',
+                allow_web=True,
+                depth='standard',
+            )
+        self.assertIn('Two important Nemotron developments', answer)
+        self.assertNotIn('"tool"', answer)
+        self.assertEqual(cascade.await_count, 2)
+
+    async def test_repeated_tool_json_raises_instead_of_leaking(self):
+        leaked = '{"tool":"search","arguments":{"query":"NVIDIA Nemotron latest news 2026"}}'
+        results = [{'title':'Nemotron update','url':'https://example.org/nemotron','excerpt':'Fresh evidence'}]
+        with patch.object(autonomy, 'cascade', new=AsyncMock(return_value=(leaked, 'model'))), \
+             patch.object(autonomy, 'search', new=AsyncMock(return_value=results)):
+            with self.assertRaises(RuntimeError):
+                await autonomy.run(
+                    'Find the latest news about NVIDIA Nemotron.',
+                    [object()],
+                    web_key='key',
+                    allow_web=True,
+                    depth='standard',
+                )
+
     async def test_deep_mode_adds_critique_and_revision(self):
         plan = '{"actions":[]}'
         cascade = AsyncMock(side_effect=[
