@@ -37,6 +37,113 @@ from backend.app.jev import evaluate_prompt as jev_evaluate_prompt
 from backend.app.google_oauth import oauth_config, issue_state, valid_state, authorization_url, exchange_code
 from backend.app.client_context import client_context_text, local_clock_reply, normalize_timezone, weather_reply
 
+LOCATION_COMPONENT_HTML = """
+<div class="geo-control">
+  <div>
+    <div class="geo-title">PRECISION LOCATION</div>
+    <div id="geo-status" class="geo-status">Not requested</div>
+  </div>
+  <div class="geo-actions">
+    <button id="geo-enable">Enable</button>
+    <button id="geo-clear" class="secondary">Clear session</button>
+  </div>
+</div>
+"""
+
+LOCATION_COMPONENT_CSS = """
+.geo-control {
+  display:flex; justify-content:space-between; align-items:center; gap:12px;
+  padding:10px 12px; border:1px solid rgba(99,235,228,.28); border-radius:12px;
+  background:linear-gradient(135deg,rgba(5,14,20,.88),rgba(11,25,33,.68));
+  box-shadow:inset 0 0 28px rgba(50,204,205,.06);
+  font-family:var(--st-font);
+}
+.geo-title {font-size:.68rem; letter-spacing:.15em; color:#77e7e1; font-weight:700;}
+.geo-status {font-size:.72rem; margin-top:4px; color:rgba(218,239,242,.72);}
+.geo-actions {display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;}
+.geo-actions button {
+  border:1px solid rgba(116,239,232,.4); border-radius:8px; padding:5px 9px;
+  background:rgba(27,77,87,.35); color:#dff; cursor:pointer; font-size:.72rem;
+}
+.geo-actions button:hover {background:rgba(53,152,159,.35);}
+.geo-actions button.secondary {opacity:.7;}
+"""
+
+LOCATION_COMPONENT_JS = """
+export default function(component) {
+  const parentElement = component.parentElement;
+  const setStateValue = component.setStateValue;
+  const data = component.data;
+  const enable = parentElement.querySelector("#geo-enable");
+  const clear = parentElement.querySelector("#geo-clear");
+  const status = parentElement.querySelector("#geo-status");
+  const current = (data && data.location) || {status: "idle"};
+
+  function render(value) {
+    const state = (value && value.status) || "idle";
+    if (state === "granted") {
+      const accuracy = Number.isFinite(value.accuracy) ? " · ±" + Math.round(value.accuracy) + " m" : "";
+      status.textContent = "Enabled for this session" + accuracy;
+    } else if (state === "denied") {
+      status.textContent = "Permission denied by browser";
+    } else if (state === "unavailable") {
+      status.textContent = "Location unavailable";
+    } else if (state === "requesting") {
+      status.textContent = "Waiting for browser permission…";
+    } else {
+      status.textContent = "Not requested";
+    }
+  }
+
+  render(current);
+
+  enable.onclick = function() {
+    if (!navigator.geolocation) {
+      const value = {status: "unavailable"};
+      render(value);
+      setStateValue("location", value);
+      return;
+    }
+    render({status: "requesting"});
+    navigator.geolocation.getCurrentPosition(
+      function(position) {
+        const value = {
+          status: "granted",
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          timestamp: Date.now()
+        };
+        render(value);
+        setStateValue("location", value);
+      },
+      function(error) {
+        const value = {
+          status: error.code === 1 ? "denied" : "unavailable",
+          code: error.code
+        };
+        render(value);
+        setStateValue("location", value);
+      },
+      {enableHighAccuracy: true, timeout: 12000, maximumAge: 300000}
+    );
+  };
+
+  clear.onclick = function() {
+    const value = {status: "idle"};
+    render(value);
+    setStateValue("location", value);
+  };
+}
+"""
+
+location_component = st.components.v2.component(
+    "itachi_location_permission",
+    html=LOCATION_COMPONENT_HTML,
+    css=LOCATION_COMPONENT_CSS,
+    js=LOCATION_COMPONENT_JS,
+)
+
 st.markdown('''<style>
  .stApp { background: radial-gradient(circle at top,#132936,#080e17 65%); color:#dce8f2; }
  h1 { letter-spacing:.22em; color:#8ee6df; }
