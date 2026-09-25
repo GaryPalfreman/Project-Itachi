@@ -147,8 +147,82 @@ def calculate(expression: str) -> float | int:
 def _clean_finance_query(text: str) -> str:
     value = text.strip().strip(' ?.')
     patterns = (
-        r'(?i)^what(?:\s+is|\'s)?\s+(.+?)\s+(?:stock\s+)?trading(?:\s+at)?(?:\s+right\s+now)?    try:
-        plan = json.loads(raw.strip().removeprefix('```json').removeprefix('```').removesuffix('```').strip())
+        r"(?i)^what(?:\s+is|'s)?\s+(.+?)\s+(?:stock\s+)?trading(?:\s+at)?(?:\s+right\s+now)?$",
+        r"(?i)^(.+?)\s+(?:stock|share)\s+price(?:\s+right\s+now)?$",
+        r"(?i)^price\s+of\s+(.+?)(?:\s+stock|\s+shares)?$",
+    )
+    for pattern in patterns:
+        match = re.match(pattern, value)
+        if match:
+            return match.group(1).strip()
+    return value[:100]
+
+
+def _clean_city_query(text: str) -> str:
+    value = text.strip().strip(' ?.')
+    match = re.search(
+        r"(?i)(?:structured\s+information|city\s+information|population)\s+(?:about|for|of)\s+(.+)$",
+        value,
+    )
+    return (match.group(1).strip() if match else value)[:100]
+
+
+def _clean_word_query(text: str) -> str:
+    value = text.strip().strip(' ?.')
+    match = re.search(
+        r"(?i)(?:define|definition\s+of|meaning\s+of|synonyms?\s+(?:for|of))\s+[\"“”']?([A-Za-z-]+)",
+        value,
+    )
+    return (match.group(1) if match else value.split()[0])[:80]
+
+
+def deterministic_actions(prompt: str, allow_web: bool, allow_rapidapi: bool,
+                          limit: int = 4) -> list[dict[str, str]]:
+    """Route obvious specialist/current requests without spending a planner model call."""
+    segments = [
+        part.strip() for part in re.split(r'[\n\r]+', prompt)
+        if part.strip()
+    ] or [prompt.strip()]
+    actions: list[dict[str, str]] = []
+
+    def add(tool: str, value: str):
+        item = {'tool': tool, 'input': value[:300]}
+        if value.strip() and item not in actions and len(actions) < limit:
+            actions.append(item)
+
+    for segment in segments:
+        text = segment.lower()
+        if allow_rapidapi and any(marker in text for marker in (
+            'trading at', 'stock price', 'share price', 'market price', 'ticker'
+        )):
+            add('rapid_finance', _clean_finance_query(segment))
+            continue
+        if allow_rapidapi and (
+            'structured information about' in text
+            or 'city information about' in text
+            or text.startswith('population of ')
+        ):
+            add('rapid_city', _clean_city_query(segment))
+            continue
+        if allow_rapidapi and any(marker in text for marker in (
+            'define ', 'definition of ', 'meaning of ', 'synonym for ', 'synonyms for ',
+            'synonym of ', 'synonyms of '
+        )):
+            add('rapid_word', _clean_word_query(segment))
+            continue
+        if allow_web and requires_fresh_web(segment):
+            add('web_search', segment)
+
+    return actions
+
+
+def actions_from_plan(raw: str, allow_web: bool, limit: int = 3,
+                      allow_rapidapi: bool = False) -> list[dict[str, str]]:
+    try:
+        fence = chr(96) * 3
+        cleaned = raw.strip().removeprefix(fence + 'json').removeprefix(fence)
+        cleaned = cleaned.removesuffix(fence).strip()
+        plan = json.loads(cleaned)
     except (ValueError, TypeError):
         return []
     actions = plan.get('actions', []) if isinstance(plan, dict) else []
