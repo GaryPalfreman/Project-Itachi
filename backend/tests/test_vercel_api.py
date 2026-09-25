@@ -46,6 +46,16 @@ class VercelAPITests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 200)
 
+    def test_unlock_tolerates_quoted_or_assignment_style_vercel_secret(self):
+        for configured in ('"preview-passcode"', 'ITACHI_ACCESS_PASSCODE="preview-passcode"'):
+            with self.subTest(configured=configured), patch.dict(
+                os.environ,
+                {"ITACHI_ACCESS_PASSCODE": configured},
+                clear=False,
+            ):
+                response = self.client.post("/api/unlock", json={"passcode": "preview-passcode"})
+            self.assertEqual(response.status_code, 200)
+
     def test_chat_requires_unlocked_session_not_replayed_passcode(self):
         client = TestClient(index.app, base_url="https://testserver")
         response = client.post("/api/chat", json={

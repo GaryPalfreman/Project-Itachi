@@ -72,14 +72,27 @@ def _access_required() -> bool:
     return bool(_setting("ITACHI_ACCESS_PASSCODE"))
 
 
+def _normalise_passphrase(value: object) -> str:
+    """Accept a Vercel value copied with presentation-only quoting/whitespace."""
+    text = str(value or "").strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in {"'", '"'}:
+        text = text[1:-1].strip()
+    prefix = "ITACHI_ACCESS_PASSCODE="
+    if text.startswith(prefix):
+        text = text[len(prefix):].strip()
+        if len(text) >= 2 and text[0] == text[-1] and text[0] in {"'", '"'}:
+            text = text[1:-1].strip()
+    return text
+
+
 def _authorized(passcode: str) -> bool:
     # Vercel's dashboard and password managers can accidentally add a newline or
     # surrounding whitespace to a long passphrase. Treat that presentation detail
     # consistently without changing any meaningful character in the secret.
-    expected = _setting("ITACHI_ACCESS_PASSCODE").strip()
+    expected = _normalise_passphrase(_setting("ITACHI_ACCESS_PASSCODE"))
     if not expected:
         return True
-    return hmac.compare_digest(str(passcode or "").strip(), expected)
+    return hmac.compare_digest(_normalise_passphrase(passcode), expected)
 
 
 def _session_token(expires_at: int) -> str:
