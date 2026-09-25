@@ -543,10 +543,7 @@ if prompt:
         except Exception as error:
             st.session_state.memory_error = f'unavailable ({type(error).__name__})'
 
-    learned_results = (
-        search_learned_knowledge(prompt, learned_knowledge, limit=5)
-        if jev_use_learned else []
-    )
+    learned_results = search_learned_knowledge(prompt, learned_knowledge, limit=5)
     learned_public_context = learned_context(learned_results)
 
     web_results = []
