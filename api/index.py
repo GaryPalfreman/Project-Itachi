@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import hmac
 import os
+import time
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -25,6 +27,8 @@ from backend.app.public_knowledge import (
 app = FastAPI(title="ITACHI", docs_url=None, redoc_url=None)
 
 LEARNED_KNOWLEDGE = load_learned_knowledge()
+SESSION_COOKIE = "itachi_preview_session"
+SESSION_MAX_AGE = 8 * 60 * 60
 
 
 @app.exception_handler(Exception)
@@ -55,7 +59,6 @@ class UnlockRequest(BaseModel):
 
 class ChatRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=8000)
-    passcode: str = Field(default="", max_length=256)
     depth: Literal["auto", "quick", "standard", "deep"] = "auto"
     history: list[Turn] = Field(default_factory=list, max_length=12)
     browser: BrowserContext = Field(default_factory=BrowserContext)
@@ -74,6 +77,31 @@ def _authorized(passcode: str) -> bool:
     if not expected:
         return True
     return hmac.compare_digest(str(passcode or ""), expected)
+
+
+def _session_token(expires_at: int) -> str:
+    secret = _setting("ITACHI_ACCESS_PASSCODE")
+    if not secret:
+        return ""
+    message = f"itachi-session:{expires_at}".encode("utf-8")
+    signature = hmac.new(secret.encode("utf-8"), message, hashlib.sha256).hexdigest()
+    return f"{expires_at}.{signature}"
+
+
+def _session_authorized(request: Request) -> bool:
+    if not _access_required():
+        return True
+    token = str(request.cookies.get(SESSION_COOKIE) or "")
+    try:
+        expires_text, signature = token.split(".", 1)
+        expires_at = int(expires_text)
+    except (TypeError, ValueError):
+        return False
+    now = int(time.time())
+    if expires_at <= now or expires_at > now + SESSION_MAX_AGE + 60:
+        return False
+    expected = _session_token(expires_at)
+    return bool(expected and hmac.compare_digest(token, expected))
 
 
 def _configured_routes() -> list[ModelRoute]:
@@ -146,19 +174,30 @@ async def status():
 
 
 @app.post("/api/unlock")
-async def unlock(request: UnlockRequest):
-    if not _authorized(request.passcode):
+async def unlock(payload: UnlockRequest, response: Response):
+    if not _authorized(payload.passcode):
         raise HTTPException(status_code=401, detail="Invalid access passcode")
+    if _access_required():
+        expires_at = int(time.time()) + SESSION_MAX_AGE
+        response.set_cookie(
+            key=SESSION_COOKIE,
+            value=_session_token(expires_at),
+            max_age=SESSION_MAX_AGE,
+            httponly=True,
+            secure=_setting("VERCEL") == "1",
+            samesite="strict",
+            path="/",
+        )
     return {"ok": True}
 
 
 @app.post("/api/chat")
-async def chat(request: ChatRequest):
-    if not _authorized(request.passcode):
+async def chat(payload: ChatRequest, request: Request):
+    if not _session_authorized(request):
         raise HTTPException(status_code=401, detail="Access required")
 
-    prompt = request.prompt.strip()
-    browser = request.browser
+    prompt = payload.prompt.strip()
+    browser = payload.browser
 
     local = local_clock_reply(
         prompt,
@@ -209,7 +248,7 @@ async def chat(request: ChatRequest):
     )
     extra_context = (
         "Recent conversation:\n"
-        + _history_context(request.history)
+        + _history_context(payload.history)
         + "\n\nBrowser context:\n"
         + browser_context
         + "\n\nLearned public knowledge:\n"
@@ -222,7 +261,7 @@ async def chat(request: ChatRequest):
         ordered,
         _setting("ITACHI_TAVILY_KEY"),
         allow_web=True,
-        depth=request.depth,
+        depth=payload.depth,
         extra_context=extra_context,
         rapidapi_key=_setting("ITACHI_RAPIDAPI_KEY"),
     )
