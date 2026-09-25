@@ -97,22 +97,28 @@ class AutonomousTests(unittest.IsolatedAsyncioTestCase):
             )
         self.assertIn('Answer', answer)
         rapid.assert_awaited_once_with('rapid_finance', 'Microsoft', 'key')
-        self.assertEqual(cascade.await_count, 2)
+        self.assertEqual(cascade.await_count, 1)
 
-    async def test_planner_can_use_rapidapi_specialist(self):
+    async def test_deep_mode_keeps_planner_with_rapidapi_specialist(self):
         plan = '{"actions":[{"tool":"rapid_finance","input":"Microsoft"}]}'
-        cascade = AsyncMock(side_effect=[(plan, 'planner'), ('Answer', 'model')])
+        cascade = AsyncMock(side_effect=[
+            (plan, 'planner'),
+            ('Draft', 'model'),
+            ('Critique', 'critic'),
+            ('Answer', 'model'),
+        ])
         with patch.object(autonomy, 'cascade', new=cascade), \
              patch.object(autonomy, 'rapid_run_tool', new=AsyncMock(return_value='price=500')) as rapid:
             answer = await autonomy.run(
                 'What is Microsoft stock trading at?',
                 [object()],
                 allow_web=True,
-                depth='standard',
+                depth='deep',
                 rapidapi_key='key',
             )
         self.assertIn('Answer', answer)
         rapid.assert_awaited_once_with('rapid_finance', 'Microsoft', 'key')
+        self.assertEqual(cascade.await_count, 4)
 
     async def test_automatic_search_and_answer_without_knowledge(self):
         plan = '{"actions":[{"tool":"web_search","input":"saturn rings"}]}'
@@ -123,7 +129,7 @@ class AutonomousTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('https://example.org/saturn', answer)
         search.assert_awaited_once()
         query, key = search.await_args.args
-        self.assertIn('saturn rings', query)
+        self.assertIn('Explain Saturn with current sources', query)
         self.assertEqual(key, 'key')
 
 
