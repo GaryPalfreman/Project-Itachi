@@ -170,7 +170,8 @@ async def run(prompt: str, routes: list, web_key: str = '', allow_web: bool = Fa
         {'role':'system', 'content':PLANNER + f' Current date: {current_date}. '
                                   f'Internet search available: {allow_web}. '
                                   f'Use at most {action_limit} actions. '
-                                  'For time-sensitive questions, search for the current result/state, not previews.'},
+                                  'For time-sensitive questions, search for the current result/state, not previews. '
+                                  'Prefer official or primary sources for winners, scores, releases and officeholders.'},
         {'role':'user', 'content':prompt}])
     findings = []
     sources = []
