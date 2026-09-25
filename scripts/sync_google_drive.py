@@ -95,7 +95,7 @@ def folder_accessible(client: httpx.Client, folder_id: str, api_key: str = "") -
     )
 
 
-def find_or_create_fallback_folder(client: httpx.Client, api_key: str = "") -> str:
+def find_fallback_folder(client: httpx.Client, api_key: str = "") -> str | None:
     response = client.get(
         DRIVE_API + "/files",
         params={
@@ -115,6 +115,13 @@ def find_or_create_fallback_folder(client: httpx.Client, api_key: str = "") -> s
         existing = files[0].get("id")
         if isinstance(existing, str) and existing:
             return existing
+    return None
+
+
+def find_or_create_fallback_folder(client: httpx.Client, api_key: str = "") -> str:
+    existing = find_fallback_folder(client, api_key)
+    if existing:
+        return existing
 
     response = client.post(
         DRIVE_API + "/files",
