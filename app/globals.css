@@ -1,0 +1,391 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #02070b;
+  color: #e7f5f6;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 31% 45%, rgba(17, 80, 94, 0.22), transparent 28%),
+    radial-gradient(circle at 35% 55%, rgba(8, 38, 50, 0.36), transparent 48%),
+    linear-gradient(135deg, #02070b 0%, #041018 55%, #02080d 100%);
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.shell {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.face-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.face-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.face-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent 0 57%, rgba(2, 8, 13, 0.12) 68%, rgba(2, 8, 13, 0.54) 100%),
+    repeating-linear-gradient(0deg, rgba(109, 241, 238, 0.012) 0 1px, transparent 1px 4px);
+}
+
+.face-hud {
+  position: absolute;
+  top: 4.2vh;
+  left: 4vw;
+  z-index: 5;
+  pointer-events: none;
+  text-transform: uppercase;
+}
+
+.brand {
+  color: #c3ffff;
+  font-size: clamp(1rem, 1.5vw, 1.35rem);
+  font-weight: 780;
+  letter-spacing: 0.34em;
+  text-shadow: 0 0 24px rgba(84, 229, 227, 0.22);
+}
+
+.mode {
+  margin-top: 0.5rem;
+  color: rgba(120, 238, 232, 0.72);
+  font-size: 0.62rem;
+  font-weight: 740;
+  letter-spacing: 0.2em;
+}
+
+.mode-thinking {
+  color: rgba(148, 222, 255, 0.92);
+  animation: cognitionPulse 1.35s ease-in-out infinite;
+}
+
+.face-hint {
+  margin-top: 0.7rem;
+  color: rgba(171, 211, 218, 0.34);
+  font-size: 0.56rem;
+  letter-spacing: 0.13em;
+}
+
+.chat-rail {
+  position: fixed;
+  z-index: 20;
+  top: 20px;
+  right: 20px;
+  bottom: 20px;
+  width: clamp(380px, 35vw, 570px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(100, 235, 232, 0.12);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(4, 14, 20, 0.78), rgba(2, 9, 14, 0.91));
+  backdrop-filter: blur(18px) saturate(118%);
+  box-shadow:
+    -25px 0 70px rgba(0, 0, 0, 0.17),
+    0 20px 60px rgba(0, 0, 0, 0.36),
+    inset 0 0 40px rgba(67, 222, 217, 0.024);
+}
+
+.rail-header {
+  min-height: 66px;
+  padding: 15px 17px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid rgba(101, 232, 228, 0.075);
+  background: rgba(4, 13, 19, 0.66);
+}
+
+.panel-kicker {
+  color: rgba(126, 238, 233, 0.64);
+  font-size: 0.57rem;
+  font-weight: 760;
+  letter-spacing: 0.2em;
+}
+
+.status-line {
+  margin-top: 5px;
+  color: rgba(192, 219, 223, 0.37);
+  font-size: 0.62rem;
+}
+
+.voice-toggle {
+  border: 1px solid rgba(103, 223, 219, 0.12);
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: rgba(192, 219, 223, 0.42);
+  background: rgba(21, 54, 63, 0.12);
+  font-size: 0.53rem;
+  font-weight: 750;
+  letter-spacing: 0.15em;
+}
+
+.voice-toggle.active {
+  border-color: rgba(103, 223, 219, 0.25);
+  color: rgba(131, 241, 236, 0.8);
+  background: rgba(41, 139, 147, 0.12);
+}
+
+.transcript {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 17px 22px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(88, 221, 217, 0.18) transparent;
+}
+
+.transcript::-webkit-scrollbar {
+  width: 5px;
+}
+
+.transcript::-webkit-scrollbar-thumb {
+  background: rgba(88, 221, 217, 0.18);
+  border-radius: 999px;
+}
+
+.welcome {
+  margin: 18px 2px 10px;
+  padding: 14px 14px 15px;
+  border: 1px solid rgba(99, 226, 222, 0.06);
+  border-radius: 14px;
+  background: rgba(16, 48, 56, 0.08);
+}
+
+.welcome p {
+  margin: 8px 0 0;
+  color: rgba(220, 240, 242, 0.68);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.message {
+  padding: 15px 3px 16px;
+  border-bottom: 1px solid rgba(104, 228, 224, 0.052);
+}
+
+.message-label,
+.itachi-label {
+  margin-bottom: 7px;
+  font-size: 0.57rem;
+  font-weight: 780;
+  letter-spacing: 0.21em;
+}
+
+.message-user .message-label {
+  color: rgba(176, 199, 204, 0.38);
+}
+
+.message-assistant .message-label,
+.itachi-label {
+  color: rgba(119, 238, 232, 0.84);
+}
+
+.message-body {
+  color: rgba(230, 244, 245, 0.88);
+  font-size: 0.9rem;
+  line-height: 1.62;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.thinking-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 1px;
+  padding: 11px 12px;
+  border: 1px solid rgba(118, 207, 252, 0.11);
+  border-radius: 12px;
+  color: rgba(169, 225, 248, 0.79);
+  background: linear-gradient(90deg, rgba(63, 145, 190, 0.06), rgba(76, 225, 218, 0.03));
+  font-size: 0.57rem;
+  font-weight: 740;
+  letter-spacing: 0.17em;
+}
+
+.thinking-card span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(124, 226, 255, 0.82);
+  box-shadow: 0 0 15px rgba(89, 207, 255, 0.56);
+  animation: cognitionPulse 1.1s ease-in-out infinite;
+}
+
+.composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 13px;
+  border-top: 1px solid rgba(100, 231, 226, 0.08);
+  background: rgba(3, 12, 18, 0.84);
+}
+
+.composer textarea {
+  flex: 1;
+  min-height: 54px;
+  max-height: 150px;
+  resize: none;
+  outline: none;
+  border: 1px solid rgba(91, 233, 228, 0.18);
+  border-radius: 16px;
+  padding: 13px 14px;
+  color: #e5f4f5;
+  background: rgba(8, 24, 32, 0.74);
+  line-height: 1.45;
+  transition: border-color 150ms ease, opacity 150ms ease;
+}
+
+.composer textarea:focus {
+  border-color: rgba(91, 233, 228, 0.36);
+}
+
+.composer textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
+.composer button,
+.unlock-panel button {
+  min-height: 48px;
+  border: 1px solid rgba(91, 233, 228, 0.24);
+  border-radius: 14px;
+  padding: 0 15px;
+  color: rgba(173, 246, 242, 0.88);
+  background: rgba(34, 113, 119, 0.18);
+  font-size: 0.58rem;
+  font-weight: 780;
+  letter-spacing: 0.16em;
+}
+
+.composer button:disabled {
+  cursor: not-allowed;
+  opacity: 0.32;
+}
+
+.unlock-panel {
+  position: fixed;
+  z-index: 30;
+  top: 50%;
+  right: clamp(24px, 8vw, 120px);
+  transform: translateY(-50%);
+  width: min(430px, calc(100vw - 48px));
+  padding: 24px;
+  border: 1px solid rgba(91, 233, 228, 0.14);
+  border-radius: 22px;
+  background: rgba(3, 12, 18, 0.86);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.42);
+}
+
+.unlock-panel h1 {
+  margin: 13px 0 7px;
+  font-size: 1.35rem;
+  font-weight: 620;
+}
+
+.unlock-panel p {
+  margin: 0 0 18px;
+  color: rgba(217, 238, 239, 0.55);
+  line-height: 1.55;
+  font-size: 0.86rem;
+}
+
+.unlock-panel form {
+  display: flex;
+  gap: 9px;
+}
+
+.unlock-panel input {
+  flex: 1;
+  min-width: 0;
+  outline: none;
+  border: 1px solid rgba(91, 233, 228, 0.18);
+  border-radius: 14px;
+  padding: 11px 12px;
+  color: #e5f4f5;
+  background: rgba(8, 24, 32, 0.74);
+}
+
+.error-text {
+  margin-top: 11px;
+  color: rgba(255, 157, 160, 0.78);
+  font-size: 0.73rem;
+}
+
+@keyframes cognitionPulse {
+  0%,
+  100% {
+    opacity: 0.48;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 980px) {
+  .face-hud {
+    top: 22px;
+    left: 22px;
+  }
+
+  .face-stage::after {
+    background: linear-gradient(180deg, transparent 0 48%, rgba(2, 8, 13, 0.45) 68%, rgba(2, 8, 13, 0.86) 100%);
+  }
+
+  .chat-rail {
+    top: auto;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    width: auto;
+    height: min(43vh, 430px);
+    border-radius: 19px;
+  }
+
+  .unlock-panel {
+    right: 12px;
+    left: 12px;
+    width: auto;
+  }
+
+  .face-hint {
+    display: none;
+  }
+}
