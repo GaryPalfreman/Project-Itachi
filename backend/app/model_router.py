@@ -1,18 +1,24 @@
 """Bounded model failover for compatible chat-completion endpoints."""
+import time
 import httpx
+
+from .runtime_health import available, record_failure, record_success, snapshot
 
 CONTEXT_MARKERS = ('context length', 'context window', 'maximum context',
                    'too many tokens', 'token limit', 'prompt is too long')
+ROUTE_MARKERS = ('model not found', 'unknown model', 'unsupported model',
+                 'invalid model', 'does not exist', 'not available')
 
 def may_fallback(error: Exception) -> bool:
     if isinstance(error, (httpx.TimeoutException, httpx.TransportError)):
         return True
     if isinstance(error, httpx.HTTPStatusError):
         code = error.response.status_code
-        if code in {402, 408, 429, 500, 502, 503, 504}:
+        if code in {401, 402, 403, 404, 408, 429, 500, 502, 503, 504}:
             return True
         if code == 400:
-            return any(term in error.response.text.lower() for term in CONTEXT_MARKERS)
+            text = error.response.text.lower()
+            return any(term in text for term in CONTEXT_MARKERS + ROUTE_MARKERS)
     return False
 
 async def completion(url: str, model: str, key: str, messages: list[dict]) -> str:
@@ -43,17 +49,40 @@ async def with_fallback(primary: tuple[str, str, str], fallback: tuple[str, str,
                                f'{type(second).__name__})') from second
 
 async def cascade(routes: list, messages: list[dict]) -> tuple[str, str]:
-    """Try configured providers in order, switching only for recoverable errors."""
+    """Try healthy configured routes and quarantine failing routes for bounded cooldowns."""
     if not routes:
         raise RuntimeError('No model routes configured')
+
+    candidates = [
+        route for route in routes
+        if available(f"model:{route.name}")
+    ]
+    if not candidates:
+        candidates = list(routes)
+
     last = None
-    for index, route in enumerate(routes):
+    attempted = 0
+    for route in candidates:
+        attempted += 1
+        health_key = f"model:{route.name}"
+        started = time.perf_counter()
         try:
-            return await completion(route.url, route.model, route.key, messages), route.name
+            answer = await completion(route.url, route.model, route.key, messages)
+            record_success(health_key, (time.perf_counter() - started) * 1000.0)
+            return answer, route.name
         except Exception as error:
             last = error
-            if not may_fallback(error) or index == len(routes) - 1:
+            record_failure(health_key, error)
+            if not may_fallback(error):
                 break
-    if len(routes) > 1 and may_fallback(last):
-        raise RuntimeError(f'All configured model routes unavailable ({type(last).__name__})') from last
+
+    if last is None:
+        raise RuntimeError('No healthy model routes available')
+    if attempted > 1 and may_fallback(last):
+        raise RuntimeError(f'All healthy model routes unavailable ({type(last).__name__})') from last
     raise last
+
+
+def route_health(name: str) -> dict:
+    """Expose non-secret runtime reliability/latency for ranking."""
+    return snapshot(f"model:{name}")
