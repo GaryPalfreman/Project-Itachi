@@ -1,6 +1,11 @@
 name: Refresh and learn public knowledge
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'data/public_catalog.json'
+      - 'data/knowledge/**'
   schedule:
     - cron: '17 * * * *'
 permissions:
