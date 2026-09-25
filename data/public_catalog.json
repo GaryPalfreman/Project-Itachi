@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-25T10:19:53.388889+00:00",
+  "generated_at": "2026-09-25T10:29:04.042013+00:00",
   "origin": "Public GitHub metadata and attributed Wikipedia excerpts; untrusted until reviewed",
   "repositories": [
     {
@@ -7,7 +7,7 @@
       "url": "https://github.com/fastapi/fastapi",
       "description": "FastAPI framework, high performance, easy to learn, fast to code, ready for production",
       "license": "MIT",
-      "stars": 102601,
+      "stars": 102602,
       "updated": "2026-09-18T21:24:37Z"
     },
     {
@@ -32,7 +32,7 @@
       "description": "🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training. ",
       "license": "Apache-2.0",
       "stars": 166629,
-      "updated": "2026-09-25T10:16:42Z"
+      "updated": "2026-09-25T10:23:21Z"
     },
     {
       "name": "SYSTRAN/faster-whisper",
