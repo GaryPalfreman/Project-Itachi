@@ -6,7 +6,7 @@ import time
 import json
 import streamlit as st
 
-st.set_page_config(page_title='Itachi · Test Console', page_icon='◉', layout='centered')
+st.set_page_config(page_title='Itachi · Cognitive Node', page_icon='◉', layout='centered')
 
 def browser_context(name: str, default: str = '') -> str:
     try:
@@ -36,6 +36,7 @@ from backend.app.public_knowledge import load as load_learned_knowledge, search 
 from backend.app.jev import evaluate_prompt as jev_evaluate_prompt
 from backend.app.google_oauth import oauth_config, issue_state, valid_state, authorization_url, exchange_code
 from backend.app.client_context import client_context_text, local_clock_reply, normalize_timezone, weather_reply
+from backend.app.itachi_face import FACE_COMPONENT_HTML, FACE_COMPONENT_CSS, FACE_COMPONENT_JS
 
 LOCATION_COMPONENT_HTML = """
 <div class="geo-control">
@@ -144,134 +145,60 @@ location_component = st.components.v2.component(
     js=LOCATION_COMPONENT_JS,
 )
 
+face_component = st.components.v2.component(
+    "itachi_reactive_face",
+    html=FACE_COMPONENT_HTML,
+    css=FACE_COMPONENT_CSS,
+    js=FACE_COMPONENT_JS,
+)
+
 st.markdown('''<style>
-:root {
-  --node-cyan:#66f5ef;
-  --node-soft:#36bfc4;
-  --node-ink:#030609;
-}
 .stApp {
   background:
-    radial-gradient(circle at 50% -12%,rgba(29,103,115,.22),transparent 35%),
-    radial-gradient(circle at 50% 30%,rgba(17,61,70,.12),transparent 30%),
+    radial-gradient(circle at 50% -12%,rgba(25,93,106,.20),transparent 35%),
+    radial-gradient(circle at 50% 32%,rgba(17,61,70,.10),transparent 31%),
     linear-gradient(180deg,#020407 0%,#050a10 46%,#080d13 100%);
   color:#dce8f2;
 }
-[data-testid="stAppViewContainer"] > .main .block-container {max-width:900px;padding-top:1rem;}
+[data-testid="stAppViewContainer"] > .main .block-container {max-width:900px;padding-top:.55rem;}
 [data-testid="stSidebar"] {
   background:linear-gradient(180deg,rgba(3,8,13,.99),rgba(7,15,22,.98));
   border-right:1px solid rgba(104,238,233,.10);
 }
-.itachi-stage {
-  position:relative;width:min(440px,82vw);height:330px;margin:0 auto -8px;
-  display:flex;align-items:center;justify-content:center;
-  filter:drop-shadow(0 0 26px rgba(42,205,207,.18));
+.itachi-response-label {
+  color:#78eee8;font-size:.68rem;font-weight:750;letter-spacing:.22em;
+  margin-bottom:.4rem;text-transform:uppercase;
 }
-.itachi-grid {
-  position:absolute;inset:25px 28px 18px;
-  background-image:linear-gradient(rgba(94,228,224,.035) 1px,transparent 1px),
-                   linear-gradient(90deg,rgba(94,228,224,.035) 1px,transparent 1px);
-  background-size:22px 22px;
-  -webkit-mask-image:radial-gradient(circle,#000 25%,transparent 72%);
-  mask-image:radial-gradient(circle,#000 25%,transparent 72%);
+[data-testid="stChatMessage"] {
+  border:1px solid rgba(105,230,226,.055);
+  background:linear-gradient(135deg,rgba(7,16,22,.38),rgba(4,9,13,.12));
 }
-.itachi-ring {
-  position:absolute;border-radius:50%;border:1px solid rgba(91,234,229,.24);
-  box-shadow:0 0 32px rgba(43,194,199,.08),inset 0 0 26px rgba(43,194,199,.05);
-}
-.ring-a {width:268px;height:268px;animation:nodeSpin 18s linear infinite;}
-.ring-b {width:224px;height:224px;border-style:dashed;animation:nodeSpinReverse 13s linear infinite;}
-.ring-c {width:184px;height:184px;border-color:rgba(147,174,181,.16);animation:ringPulse 3.8s ease-in-out infinite;}
-.itachi-orbit {
-  position:absolute;width:290px;height:290px;border-radius:50%;
-  background:conic-gradient(from 10deg,transparent 0 15%,rgba(91,244,236,.55) 17%,transparent 19% 48%,
-             rgba(91,244,236,.22) 50%,transparent 53% 83%,rgba(91,244,236,.45) 85%,transparent 87%);
-  -webkit-mask:radial-gradient(transparent 69%,#000 70% 72%,transparent 73%);
-  mask:radial-gradient(transparent 69%,#000 70% 72%,transparent 73%);
-  animation:nodeSpin 10s linear infinite;
-}
-.itachi-face {
-  position:relative;width:158px;height:190px;z-index:5;
-  clip-path:polygon(29% 2%,71% 2%,93% 23%,96% 67%,74% 94%,50% 100%,26% 94%,4% 67%,7% 23%);
-  background:linear-gradient(150deg,rgba(105,141,151,.13),rgba(4,9,14,.92) 34%,rgba(3,7,11,.98) 72%,rgba(63,105,114,.12));
-  border:1px solid rgba(104,230,227,.35);
-  box-shadow:inset 0 0 38px rgba(55,211,210,.10),0 0 42px rgba(42,195,196,.11);
-}
-.itachi-face:before {
-  content:"";position:absolute;inset:12px;
-  clip-path:polygon(31% 0,69% 0,92% 24%,90% 69%,70% 91%,50% 97%,30% 91%,10% 69%,8% 24%);
-  border:1px solid rgba(137,169,178,.18);background:rgba(2,6,10,.28);
-}
-.brow {
-  position:absolute;top:59px;width:54px;height:2px;z-index:8;
-  background:linear-gradient(90deg,transparent,#9cfaf5 35%,#3fded9 72%,transparent);
-  box-shadow:0 0 11px rgba(100,246,240,.72);
-}
-.brow-l {left:18px;transform:rotate(8deg)} .brow-r {right:18px;transform:rotate(-8deg)}
-.eye {
-  position:absolute;top:70px;width:42px;height:12px;z-index:9;
-  background:linear-gradient(90deg,transparent 3%,#b9fffb 42%,#55eee8 58%,transparent 97%);
-  clip-path:polygon(0 48%,24% 13%,79% 20%,100% 56%,74% 88%,22% 82%);
-  box-shadow:0 0 15px rgba(83,244,237,.65);animation:eyePulse 2.8s ease-in-out infinite;
-}
-.eye-l {left:24px}.eye-r {right:24px}
-.nose {
-  position:absolute;left:76px;top:79px;width:7px;height:50px;z-index:7;
-  border-left:1px solid rgba(110,229,226,.25);border-right:1px solid rgba(110,229,226,.08);
-  transform:skew(-4deg);
-}
-.mouth {
-  position:absolute;left:47px;top:143px;width:64px;height:8px;z-index:8;
-  border-top:1px solid rgba(101,228,224,.38);filter:drop-shadow(0 0 5px rgba(62,220,217,.22));
-}
-.core {
-  position:absolute;left:74px;top:108px;width:10px;height:10px;border-radius:50%;z-index:10;
-  background:#b9fffb;box-shadow:0 0 14px #62eee9,0 0 30px rgba(80,235,231,.55);
-  animation:corePulse 1.8s ease-in-out infinite;
-}
-.scan {
-  position:absolute;z-index:12;left:24px;right:24px;height:1px;top:20px;
-  background:linear-gradient(90deg,transparent,rgba(114,255,248,.75),transparent);
-  box-shadow:0 0 9px rgba(83,240,234,.5);animation:scanLine 4s ease-in-out infinite;
-}
-.itachi-wordmark {
-  text-align:center;font-size:2rem;font-weight:650;letter-spacing:.42em;margin-right:-.42em;
-  color:#b7d9de;text-shadow:0 0 18px rgba(72,229,224,.23);
-}
-.itachi-subtitle {
-  text-align:center;margin-top:6px;color:rgba(142,218,219,.62);font-size:.71rem;
-  letter-spacing:.20em;text-transform:uppercase;
-}
-.itachi-status {
-  width:max-content;margin:12px auto 14px;padding:5px 11px;border-radius:999px;
-  border:1px solid rgba(89,231,226,.18);color:rgba(154,236,232,.78);
-  background:rgba(5,19,24,.48);font-size:.65rem;letter-spacing:.15em;
-}
-@keyframes nodeSpin {to{transform:rotate(360deg)}}
-@keyframes nodeSpinReverse {to{transform:rotate(-360deg)}}
-@keyframes ringPulse {50%{transform:scale(1.045);opacity:.6}}
-@keyframes eyePulse {50%{filter:brightness(1.35);opacity:.8}}
-@keyframes corePulse {50%{transform:scale(1.45);opacity:.72}}
-@keyframes scanLine {0%,100%{transform:translateY(0);opacity:0}12%{opacity:.8}50%{transform:translateY(145px);opacity:.45}88%{opacity:.75}}
-@media (max-width:620px){
-  .itachi-stage{height:280px;transform:scale(.88);margin-top:-12px;margin-bottom:-28px}
-  .itachi-wordmark{font-size:1.55rem}
-}
-</style>
-<div class="itachi-stage">
-  <div class="itachi-grid"></div>
-  <div class="itachi-orbit"></div>
-  <div class="itachi-ring ring-a"></div><div class="itachi-ring ring-b"></div><div class="itachi-ring ring-c"></div>
-  <div class="itachi-face">
-    <div class="brow brow-l"></div><div class="brow brow-r"></div>
-    <div class="eye eye-l"></div><div class="eye eye-r"></div>
-    <div class="nose"></div><div class="mouth"></div><div class="core"></div><div class="scan"></div>
-  </div>
-</div>
-<div class="itachi-wordmark">ITACHI</div>
-<div class="itachi-subtitle">Obsidian Cognitive Node · Adaptive Intelligence Interface</div>
-<div class="itachi-status">NODE ONLINE · SESSION-LOCAL CONTEXT · BOUNDED AUTONOMY</div>
-''', unsafe_allow_html=True)
+</style>''', unsafe_allow_html=True)
+
+face_slot = st.empty()
+if 'face_render_nonce' not in st.session_state:
+    st.session_state.face_render_nonce = 0
+
+def render_itachi_face(mode: str = 'idle', speak_text: str = '', speech_id: str = '',
+                       voice_enabled: bool = True) -> None:
+    st.session_state.face_render_nonce += 1
+    face_slot.empty()
+    with face_slot.container():
+        face_component(
+            data={
+                'mode': mode,
+                'speak_text': speak_text,
+                'speech_id': speech_id,
+                'voice_enabled': voice_enabled,
+            },
+            default={},
+            key=f"itachi_face_{st.session_state.face_render_nonce}",
+        )
+
+def itachi_response_label() -> None:
+    st.markdown('<div class="itachi-response-label">ITACHI</div>', unsafe_allow_html=True)
+
+render_itachi_face('idle', voice_enabled=False)
 
 access_passcode = setting('ITACHI_ACCESS_PASSCODE')
 if access_passcode and not st.session_state.get('authenticated', False):
@@ -330,7 +257,7 @@ if access_passcode and st.session_state.get('authenticated', False) and google_o
 try:
     configured = parse(setting('ITACHI_MODEL_ROUTES_JSON'))
 except ValueError:
-    st.error('Invalid model routes configuration. Ask the app administrator to check the secret.')
+    st.error('Invalid reasoning-engine configuration. Ask the app administrator to check the secret.')
     st.stop()
 if not configured:
     for name, prefix in (('Reasoning', 'REASONING'), ('Fallback', 'FALLBACK')):
@@ -386,7 +313,7 @@ if hf_token:
 
 provider_enabled = bool(access_passcode)
 if configured and not provider_enabled:
-    st.warning('Model routes are disabled until ITACHI_ACCESS_PASSCODE is set in app secrets.')
+    st.warning('Itachi reasoning is locked until ITACHI_ACCESS_PASSCODE is set in app secrets.')
 
 if 'history' not in st.session_state:
     st.session_state.history = []
@@ -414,9 +341,9 @@ with st.sidebar:
     st.caption(f"Learned public knowledge: {len(learned_knowledge)} records")
     st.download_button('Download public catalog', data=json.dumps(snapshot, indent=2),
                        file_name='itachi-public-catalog.json', mime='application/json')
-    st.caption(f"Answer models available: {len(configured) if provider_enabled else 0}")
-    st.caption(f"Nemotron semantic memory: {'ready' if memory_enabled else 'off'}")
-    st.caption(f"JEV decision layer: {'ready' if typesafe_key else 'off'}")
+    st.caption(f"Cognitive engine: {'online' if configured and provider_enabled else 'offline'}")
+    st.caption(f"Semantic memory: {'ready' if memory_enabled else 'off'}")
+    st.caption(f"Decision layer: {'ready' if typesafe_key else 'off'}")
     st.caption(f"Google OAuth bootstrap: {'ready' if google_oauth_ready else 'off'}")
     st.caption(f"Browser timezone: {client_timezone}")
     prior_component = st.session_state.get('itachi_location', {})
@@ -444,9 +371,9 @@ with st.sidebar:
     if st.session_state.memory_error:
         st.caption(f"Memory status: {st.session_state.memory_error}")
     if st.session_state.jev_error:
-        st.caption(f"JEV status: {st.session_state.jev_error}")
+        st.caption(f"Decision status: {st.session_state.jev_error}")
     if hf_token and st.session_state.get('hf_discovery_error'):
-        st.caption('Hugging Face model discovery is unavailable; manually configured models may still work.')
+        st.caption('Optional model discovery is unavailable; configured routes may still work.')
     st.header('Tools')
     autonomous = st.checkbox('Autonomous reasoning & research', value=True,
                              help='Itachi chooses bounded read-only tools, verifies evidence, and can critique deep answers.')
@@ -457,10 +384,19 @@ with st.sidebar:
         help='Auto adapts to the question. Quick minimizes model/tool calls. Deep adds broader research and a critique/revision pass.'
     )
     use_web = st.checkbox('Allow internet research', value=True,
-                          help='JEV and the planner decide when fresh public information is useful. Personal data and secrets are excluded from search queries.')
-    use_memory = st.checkbox('Use Nemotron semantic memory', value=memory_enabled, disabled=not memory_enabled,
-                             help='Embeds this session remotely with NVIDIA Nemotron-3-Embed-1B. Memory stays in this Streamlit session.')
-    route_name = st.selectbox('Answer model', ['Automatic'] + [route.name for route in configured])
+                          help='Itachi decides when fresh public information is useful. Personal data and secrets are excluded from search queries.')
+    voice_enabled = st.checkbox(
+        'Voice responses',
+        value=True,
+        help='Speaks Itachi replies using the best calm English voice available in this browser.'
+    )
+    use_memory = st.checkbox(
+        'Use session semantic memory',
+        value=memory_enabled,
+        disabled=not memory_enabled,
+        help='Keeps semantic context for this Streamlit session only.'
+    )
+    route_name = 'Automatic'
 
     if access_passcode and st.session_state.get('authenticated', False):
         with st.expander('Google Drive admin'):
@@ -512,6 +448,8 @@ client_context = client_context_text(
 
 for index, item in enumerate(st.session_state.history):
     with st.chat_message(item['role']):
+        if item['role'] == 'assistant':
+            itachi_response_label()
         st.write(item['content'])
         if item['role'] == 'assistant' and item.get('route') and not item.get('rated'):
             left, right = st.columns(2)
@@ -529,6 +467,8 @@ if prompt:
     st.session_state.history.append({'role':'user','content':prompt})
     with st.chat_message('user'):
         st.write(prompt)
+
+    render_itachi_face('thinking', voice_enabled=False)
 
     utility_reply = local_clock_reply(
         prompt,
@@ -557,7 +497,10 @@ if prompt:
                 )
 
     if utility_reply is not None:
+        speech_id = str(time.time_ns())
+        render_itachi_face('speaking', utility_reply, speech_id, voice_enabled)
         with st.chat_message('assistant'):
+            itachi_response_label()
             st.write(utility_reply)
         st.session_state.history.append({
             'role': 'assistant',
@@ -641,19 +584,18 @@ if prompt:
                         autonomous_parts.append(f"Learned public knowledge:\n{learned_public_context}")
                     autonomous_parts.append(f"Current question: {prompt}")
                     autonomous_prompt = "\n\n".join(autonomous_parts)
-                    reply = asyncio.run(
+                    reply, used = asyncio.run(
                         autonomous_run(
                             autonomous_prompt,
                             ordered,
                             setting('ITACHI_TAVILY_KEY'),
                             jev_web,
                             depth=answer_depth.lower(),
+                            return_route=True,
                         )
                     )
-                    used = next((r.name for r in ordered if f'[Answered by {r.name}]' in reply), ordered[0].name)
                 else:
                     reply, used = asyncio.run(cascade(ordered, messages))
-                    reply = f'Answered by {used}:\n\n' + reply
                 for route in ordered:
                     if route.name == used:
                         record(st.session_state.route_feedback, used, True)
@@ -662,11 +604,14 @@ if prompt:
             except Exception as error:
                 record(st.session_state.route_feedback, ordered[0].name, False)
                 fallback = asyncio.run(reference_reply(prompt, use_web))
-                reply = f'Model route unavailable ({type(error).__name__}).\n\n' + fallback
+                reply = f'Itachi reasoning is temporarily unavailable ({type(error).__name__}).\n\n' + fallback
 
         if web_results and not (not configured or not provider_enabled):
             reply += '\n\nWeb sources: ' + ', '.join(r['url'] for r in web_results)
 
+        speech_id = str(time.time_ns())
+        render_itachi_face('speaking', reply, speech_id, voice_enabled)
+        itachi_response_label()
         st.write(reply)
         st.session_state.history.append({'role':'assistant','content':reply,'route':used})
 

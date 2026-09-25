@@ -34,7 +34,7 @@ async def answer(prompt: str, route: str = 'reasoning', use_web: bool = False) -
         try:
             return await autonomous_run(prompt, rank(routes, prompt, task_override=jev_task), settings.web_key, effective_web), []
         except Exception as error:
-            return (f'Model route unavailable ({type(error).__name__}).\n\n'
+            return (f'Itachi reasoning is temporarily unavailable ({type(error).__name__}).\n\n'
                     + await reference_reply(prompt, effective_web)), []
     notes = vault.search(prompt) if settings.knowledge_enabled else []
     context = '\n\n'.join(f"[{n['path']}] {n['excerpt']}" for n in notes)[:10000]
@@ -49,13 +49,10 @@ async def answer(prompt: str, route: str = 'reasoning', use_web: bool = False) -
     else:
         if settings.model_routes_json:
             output, used = await cascade(parse(settings.model_routes_json), messages)
-            output = f'[Answered by {used}]\n\n' + output
         else:
             output, used = await with_fallback(
                 (settings.reasoning_url, settings.reasoning_model, settings.reasoning_key),
                 (settings.fallback_url, settings.fallback_model, settings.fallback_key), messages)
-            if used == 'fallback':
-                output = '[Answered by fallback model]\n\n' + output
     if web_results:
         output += '\n\nWeb sources: ' + ', '.join(r['url'] for r in web_results)
     return output, notes
