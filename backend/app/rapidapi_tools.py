@@ -93,12 +93,12 @@ async def finance_lookup(query: str, key: str) -> str:
     )
     quote_data = quote_payload.get("Global Quote")
     if not isinstance(quote_data, dict) or not quote_data:
-        output = f"Alpha Vantage match: {symbol}"
+        output = f"Market match: {symbol}"
         if match_summary:
             output += f" | {match_summary}"
     else:
         output = (
-            f"Alpha Vantage live market data for {symbol}"
+            f"Live market data for {symbol}"
             + (f" ({match_summary})" if match_summary else "")
             + ": "
             f"price={quote_data.get('05. price', 'n/a')}, "
@@ -194,7 +194,7 @@ async def word_lookup(word: str, key: str) -> str:
     if isinstance(pronunciation, dict):
         pronunciation = pronunciation.get("all") or pronunciation.get("noun") or pronunciation.get("verb")
     output = (
-        f"WordsAPI lexical data for '{word}': definitions="
+        f"Lexical data for '{word}': definitions="
         + (" | ".join(definitions[:5]) if definitions else "n/a")
     )
     if synonyms:
