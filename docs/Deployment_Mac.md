@@ -14,11 +14,12 @@ cp .env.example .env
 Install [Ollama for macOS](https://ollama.com/download/mac) and then run:
 
 ```bash
-ollama pull nemotron-mini:4b
+ollama pull llama3.2:3b
 ollama list
+python3 scripts/local_inventory.py
 ```
 
-The default model is a small NVIDIA Nemotron variant; inspect available memory before choosing a larger model. A different locally served Nemotron can be selected with `ITACHI_REASONING_URL` and `ITACHI_REASONING_MODEL`.
+The default model matches the previously configured lightweight model on your M2 Mac. The inventory checks the vault path and Ollama's local model list without changing either. Select an installed Nemotron, Qwen or DeepSeek variant by updating `ITACHI_REASONING_MODEL` in `.env`; larger models can exhaust the 8 GB shared memory. Set `ITACHI_FALLBACK_URL=http://127.0.0.1:11434/v1` and `ITACHI_FALLBACK_MODEL` to another **installed** Ollama model for local fallback. A separate hosted compatible endpoint can also serve as fallback if you deliberately configure it.
 
 Install a Piper voice from the active upstream project:
 
@@ -43,7 +44,7 @@ Open `http://127.0.0.1:8765/`; check `http://127.0.0.1:8765/api/health`. Send a 
 
 Codex is configured only if you have an authorized OpenAI-compatible coding endpoint: put its full `/v1` base URL, model name and server-side key into `.env`. A local Codex CLI installation by itself does not provide this endpoint. An alternative local coding model can use Ollama's compatible endpoint.
 
-OpenClaw exposes an optional HTTP chat completions API. Its endpoint is disabled by default. Add the following property to the existing `gateway` object in your OpenClaw configuration, preserving its other settings:
+OpenClaw exposes an optional HTTP chat completions API. Its endpoint is disabled by default. If you choose to enable it, add the following property to the existing `gateway` object in your OpenClaw configuration, preserving its other settings. The existing production OpenClaw configuration and vault should remain untouched until you intentionally perform that change:
 
 ```json5
 gateway: {

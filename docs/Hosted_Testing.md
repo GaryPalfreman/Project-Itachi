@@ -8,7 +8,7 @@ This is a temporary **testing console**. The full audio-reactive face, WebSocket
 2. Choose **Create app → Deploy a public app from GitHub** (repository visibility and app viewing access are separate settings).
 3. Repository: `GaryPalfreman/Project-Itachi`; branch: `main`; main file path: `streamlit_app.py`.
 4. In **Advanced settings**, select Python 3.12. Deploy **without model secrets** first and verify search-only mode. The app cannot reach `127.0.0.1` on your Mac.
-5. In app settings, set viewing access to **private** before adding model secrets or uploading engineering notes. Streamlit currently allows only one private app per account; if private access is unavailable, test only with nonsensitive notes and do not add a paid provider key to a public test app without access controls.
+5. In app settings, set viewing access to **private** before adding model secrets or uploading engineering notes. Also set `ITACHI_ACCESS_PASSCODE` to a strong independent passcode before enabling paid providers. A passcode in the app is an extra gate, not a substitute for private viewing access. If private access is unavailable, use only nonsensitive demo notes and keep the real vault off the host.
 6. Add secrets for a model endpoint reachable from the cloud, then check chat with a small Markdown ZIP. Keep the real vault out of the public repository.
 
 Cloud secrets example (replace the provider, model and key with credentials **you** control):
@@ -20,15 +20,27 @@ ITACHI_REASONING_KEY = "YOUR_PRIVATE_KEY"
 ITACHI_FALLBACK_URL = "https://api.groq.com/openai/v1"
 ITACHI_FALLBACK_MODEL = "llama-3.3-70b-versatile"
 ITACHI_FALLBACK_KEY = "YOUR_GROQ_KEY"
+ITACHI_ACCESS_PASSCODE = "YOUR_STRONG_INDEPENDENT_PASSCODE"
+ITACHI_TAVILY_KEY = "YOUR_TAVILY_API_KEY"
 ```
 
 The Groq Llama URL and model are an **example**, not an account connection. Verify the model is available in your account. The router makes one fallback attempt on quota/rate limit (402/429), timeout, transport outage, selected server errors, or a recognized context-limit error. It does not fail over on invalid credentials or silently continue without an answer. A fallback also has its own rate limits; it cannot provide unlimited tokens. See [[Protocol_and_State_Rules]].
+
+For more than two providers, replace the individual route secrets with one ordered JSON string. Each route is an OpenAI-compatible `/v1` base URL, a model name and its own server-side key:
+
+```toml
+ITACHI_MODEL_ROUTES_JSON = '[{"name":"cloud","url":"https://YOUR_PROVIDER/v1","model":"YOUR_MODEL","key":"YOUR_KEY"},{"name":"llama","url":"https://YOUR_OTHER_PROVIDER/v1","model":"YOUR_LLAMA_MODEL","key":"YOUR_OTHER_KEY"}]'
+```
+
+The model selector chooses the first route to try. On a recoverable error, the remaining configured routes are tried once in order. `http://127.0.0.1:11434/v1` is valid only when Streamlit and Ollama run on the **same computer**; in Streamlit Community Cloud it points to the cloud container, not your Mac. Do not paste an OpenClaw gateway operator token into a public deployment.
+
+Checking “Search internet” sends only the current question to Tavily. Tavily returns links and snippets that are passed to the answer model; the response includes source URLs. Configure the Tavily key and the access passcode first. This is an opt-in API request, and provider usage may incur charges. See [[Internet_and_Accounts]].
 
 ## Obsidian export
 
 On the Mac, copy only the Markdown notes you want to test into a staging folder and ZIP that folder. The import ignores `.obsidian`, non-Markdown files and traversal paths. It is limited to 2,000 notes, 30 MB of ZIP bytes, 50 MB uncompressed, and 256 KB per note. The app keeps note text in the Streamlit server session and sends relevant excerpts in prompts to the selected model provider. Clear the session when finished. It does not upload or synchronize your real `~/Documents/Engineering-Knowledge` vault automatically.
 
-The live vault described in your engineering notes uses **separate** `PROVENANCE` (DOCUMENTED, OBSERVED, MEASURED, REPORTED, INFERRED, UNKNOWN) and `KNOWLEDGE_STATUS` (RESEARCHED, VERIFIED, STANDARD-DEPENDENT, FIELD-VALIDATED) fields. The testing console preserves source text as-is and does not upgrade either classification. Do not put employer-confidential documents into the public GitHub repository.
+The live vault described in your engineering notes uses **separate** `PROVENANCE` (DOCUMENTED, OBSERVED, MEASURED, REPORTED, INFERRED, UNKNOWN) and `KNOWLEDGE_STATUS` (RESEARCHED, VERIFIED, STANDARD-DEPENDENT, FIELD-VALIDATED) fields. The testing console preserves source text as-is and does not upgrade either classification. Do not put employer-confidential documents into the public GitHub repository or public app.
 
 ## Later continuous web deployment
 

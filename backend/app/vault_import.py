@@ -38,6 +38,9 @@ def find(notes: dict[str, str], query: str, limit: int = 6) -> list[dict[str, st
         text = (name + '\n' + body).lower()
         score = sum(text.count(term) for term in terms)
         if score:
-            scored.append((score, name, body[:1500]))
+            position = next((body.lower().find(term) for term in terms if term in body.lower()), 0)
+            start = max(0, position - 300)
+            excerpt = body[start:start + 1500]
+            scored.append((score, name, excerpt))
     return [{'path': name, 'excerpt': excerpt} for _, name, excerpt in
             sorted(scored, reverse=True)[:limit]]

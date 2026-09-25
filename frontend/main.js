@@ -7,6 +7,6 @@ function connect(){socket=new WebSocket(`${location.protocol==='https:'?'wss':'w
  socket.onmessage=async event=>{let data=JSON.parse(event.data);if(data.type==='state')setState(data.state);if(data.type==='error')add('error',data.message);
  if(data.type==='answer'){add('assistant',data.text+(data.notes.length?'\nVault: '+data.notes.join(', '):''));if(voice)try{await speak(data.text)}catch(e){add('error',e.message)}}}}
 connect();document.getElementById('form').onsubmit=e=>{e.preventDefault();const text=input.value.trim();if(!text)return;if(socket.readyState!==WebSocket.OPEN){add('error','Backend disconnected');return}
- add('user',text);socket.send(JSON.stringify({id:crypto.randomUUID(),route:document.getElementById('route').value,text}));input.value=''};
+ add('user',text);socket.send(JSON.stringify({id:crypto.randomUUID(),route:document.getElementById('route').value,web:document.getElementById('web').checked,text}));input.value=''};
 document.getElementById('mic').onclick=async()=>{try{await record(document.getElementById('mic'),(text,error)=>{if(error)add('error',error);else if(text){input.value=text;document.getElementById('form').requestSubmit()}})}catch(e){add('error',e.message);setState('error')}};
 document.getElementById('voice').onclick=e=>{voice=!voice;e.target.textContent=voice?'VOICE ON':'VOICE OFF';e.target.setAttribute('aria-pressed',String(voice))};

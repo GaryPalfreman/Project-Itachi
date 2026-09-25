@@ -10,9 +10,9 @@ if load_dotenv:
 
 @dataclass(frozen=True)
 class Config:
-    vault: Path = Path(os.getenv('ITACHI_VAULT', './examples/vault')).expanduser().resolve()
+    vault: Path = Path(os.getenv('ITACHI_VAULT', str(Path.home() / 'Documents' / 'Engineering-Knowledge'))).expanduser().resolve()
     reasoning_url: str = os.getenv('ITACHI_REASONING_URL', 'http://127.0.0.1:11434/v1')
-    reasoning_model: str = os.getenv('ITACHI_REASONING_MODEL', 'nemotron-mini:4b')
+    reasoning_model: str = os.getenv('ITACHI_REASONING_MODEL', 'llama3.2:3b')
     reasoning_key: str = os.getenv('ITACHI_REASONING_KEY', '')
     fallback_url: str = os.getenv('ITACHI_FALLBACK_URL', '')
     fallback_model: str = os.getenv('ITACHI_FALLBACK_MODEL', '')
@@ -26,5 +26,6 @@ class Config:
     jev_token: str = os.getenv('ITACHI_JEV_TOKEN', '')
     piper_voice: str = os.getenv('ITACHI_PIPER_VOICE', '')
     whisper_model: str = os.getenv('ITACHI_WHISPER_MODEL', 'base.en')
+    web_key: str = os.getenv('ITACHI_TAVILY_KEY', '')
 
 settings = Config()

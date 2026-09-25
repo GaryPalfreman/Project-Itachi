@@ -85,7 +85,7 @@ async def ws(socket: WebSocket):
                 continue
             await socket.send_json({'type':'state','id':request_id,'state':'thinking'})
             try:
-                result, notes = await answer(prompt, route)
+                result, notes = await answer(prompt, route, incoming.get('web') is True)
                 await socket.send_json({'type':'answer','id':request_id,'text':result,
                                         'notes':[n['path'] for n in notes]})
                 await socket.send_json({'type':'state','id':request_id,'state':'idle'})

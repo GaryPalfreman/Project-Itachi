@@ -41,3 +41,19 @@ async def with_fallback(primary: tuple[str, str, str], fallback: tuple[str, str,
         except Exception as second:
             raise RuntimeError(f'Primary and fallback unavailable ({type(first).__name__}; '
                                f'{type(second).__name__})') from second
+
+async def cascade(routes: list, messages: list[dict]) -> tuple[str, str]:
+    """Try configured providers in order, switching only for recoverable errors."""
+    if not routes:
+        raise RuntimeError('No model routes configured')
+    last = None
+    for index, route in enumerate(routes):
+        try:
+            return await completion(route.url, route.model, route.key, messages), route.name
+        except Exception as error:
+            last = error
+            if not may_fallback(error) or index == len(routes) - 1:
+                break
+    if len(routes) > 1 and may_fallback(last):
+        raise RuntimeError(f'All configured model routes unavailable ({type(last).__name__})') from last
+    raise last

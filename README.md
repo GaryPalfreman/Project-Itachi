@@ -1,10 +1,8 @@
 # Itachi · Local Assistant System
 
-[Open the hosted test console](https://project-itachi.streamlit.app/) · [Hosted setup](docs/Hosted_Testing.md)
+Start with [[Master_Architecture_Blueprint]], then [[Deployment_Mac]], [[Hosted_Testing]], [[Internet_and_Accounts]], [[Protocol_and_State_Rules]], and [[Agent_Assignments]]. These files live in `docs/` and can be copied into an Obsidian vault. The local system reads the configured vault.
 
-Start with [[Master_Architecture_Blueprint]], then [[Deployment_Mac]], [[Protocol_and_State_Rules]], and [[Agent_Assignments]]. These files live in `docs/` and can be copied into an Obsidian vault. The system itself reads the configured vault.
-
-Fast start: create a Python virtual environment, install `backend/requirements-voice.txt`, copy `.env.example` to `.env`, pull `nemotron-mini:4b` with Ollama, and run `python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8765`. See [[Deployment_Mac]] for the full sequence.
+Fast start: create a Python virtual environment, install `backend/requirements-voice.txt`, copy `.env.example` to `.env`, run `python3 scripts/local_inventory.py` to inspect your Mac, and run `python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8765`. See [[Deployment_Mac]] for the full sequence.
 
 This is a local prototype. It includes the face, voice routes, model adapters and vault read/new-note API. It does not include verified JEV API connectivity, an authenticated internet deployment, or automatic coding agent execution.
 
