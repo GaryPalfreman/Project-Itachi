@@ -329,8 +329,8 @@ export default function(component) {
     const r = rotatePoint(local, pose.yaw, pose.pitch, pose.roll);
     const camera = 3.15;
     const perspective = camera / (camera - r.z);
-    const faceScale = Math.min(width * 0.43, height * 0.44);
-    const cx = width * 0.5;
+    const faceScale = Math.min(width * (width > 980 ? 0.38 : 0.43), height * 0.44);
+    const cx = width * (width > 980 ? 0.34 : 0.5);
     const cy = height * 0.49;
 
     let drift = 1.0;
@@ -352,7 +352,7 @@ export default function(component) {
   function draw(now) {
     ctx.clearRect(0, 0, width, height);
     const pose = currentPose(now);
-    const cx = width * 0.5;
+    const cx = width * (width > 980 ? 0.34 : 0.5);
     const cy = height * 0.49;
 
     const halo = ctx.createRadialGradient(
