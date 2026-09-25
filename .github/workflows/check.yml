@@ -42,3 +42,11 @@ jobs:
         with:
           node-version: '22'
       - run: for file in frontend/*.js; do node --input-type=module --check < "$file"; done
+      - name: Check embedded Itachi face JavaScript
+        run: |
+          python - <<'PY'
+          from backend.app.itachi_face import FACE_COMPONENT_JS
+          with open('/tmp/itachi-face.mjs', 'w', encoding='utf-8') as handle:
+              handle.write(FACE_COMPONENT_JS)
+          PY
+          node --check /tmp/itachi-face.mjs
