@@ -6,3 +6,8 @@ __pycache__/
 *.zip
 models/
 *.safetensors
+
+# Never commit runtime credentials
+.streamlit/secrets.toml
+.env.local
+.env.production
