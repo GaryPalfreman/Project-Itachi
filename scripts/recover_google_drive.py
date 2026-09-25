@@ -6,7 +6,7 @@ from pathlib import Path
 
 import httpx
 
-from scripts.sync_google_drive import DRIVE_API, DEFAULT_FOLDER_ID, access_token, find_file
+from scripts.sync_google_drive import DRIVE_API, DEFAULT_FOLDER_ID, access_token, find_file, folder_accessible, find_fallback_folder
 from backend.app.google_oauth import oauth_config
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -47,8 +47,15 @@ if __name__ == "__main__":
     headers = {"Authorization": "Bearer " + token}
     recovered = []
     with httpx.Client(timeout=30, headers=headers) as client:
+        effective_folder_id = (
+            folder_id
+            if folder_accessible(client, folder_id, api_key)
+            else find_fallback_folder(client, api_key)
+        )
+        if not effective_folder_id:
+            raise RuntimeError("No authorized Itachi recovery folder exists in Google Drive")
         for name, destination in TARGETS.items():
-            file_id = find_file(client, name, folder_id, api_key)
+            file_id = find_file(client, name, effective_folder_id, api_key)
             if not file_id:
                 continue
             download_file(client, file_id, destination, api_key)
