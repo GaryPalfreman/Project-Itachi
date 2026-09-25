@@ -106,7 +106,7 @@ export default function(component) {
     const labels = {
       idle: "NODE ONLINE",
       listening: "LISTENING",
-      thinking: "COGNITION ACTIVE",
+      thinking: "THINKING // SYNTHESIZING",
       speaking: "VOICE LINK ACTIVE"
     };
     stateLabel.textContent = labels[mode] || "NODE ONLINE";
@@ -444,13 +444,34 @@ export default function(component) {
     ctx.shadowBlur = 0;
 
     // Scanning arcs reinforce volumetric motion.
-    const arcAlpha = mode === "thinking" ? 0.12 : 0.055;
+    const arcAlpha = mode === "thinking" ? 0.18 : 0.055;
     ctx.strokeStyle = "rgba(92,239,233," + arcAlpha + ")";
-    ctx.lineWidth = 1;
+    ctx.lineWidth = mode === "thinking" ? 1.25 : 1;
     ctx.beginPath();
     ctx.ellipse(cx, cy, Math.min(width, height) * 0.31, Math.min(width, height) * 0.40,
       pose.yaw * 0.20, -1.2, 1.2);
     ctx.stroke();
+
+    if (mode === "thinking") {
+      for (let ring = 0; ring < 3; ring++) {
+        const phase = now * (0.0008 + ring * 0.00022) + ring * 2.1;
+        const radiusX = Math.min(width, height) * (0.18 + ring * 0.055);
+        const radiusY = radiusX * (0.72 + ring * 0.04);
+        ctx.strokeStyle = "rgba(104,194,255," + (0.09 - ring * 0.018) + ")";
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.ellipse(
+          cx,
+          cy - Math.min(width, height) * 0.09,
+          radiusX,
+          radiusY,
+          phase * 0.24,
+          phase,
+          phase + 1.55
+        );
+        ctx.stroke();
+      }
+    }
 
     if (mode === "listening" || mode === "speaking") {
       const age = (now % 1800) / 1800;
@@ -572,7 +593,10 @@ export default function(component) {
   }
 
   async function startListening() {
-    if (!micEnabled) return;
+    if (!micEnabled || mode === "thinking") {
+      if (mode === "thinking") hint.textContent = "Thinking…";
+      return;
+    }
     if (!micReady) {
       const ok = await requestMicPermission();
       if (!ok) {
@@ -695,10 +719,12 @@ export default function(component) {
 
   if (micEnabled) {
     requestMicPermission().then(function(ok) {
-      hint.textContent = ok ? "Tap the face to speak" : "Tap the face to enable microphone";
+      hint.textContent = mode === "thinking"
+        ? "Thinking…"
+        : (ok ? "Tap the face to speak" : "Tap the face to enable microphone");
     });
   } else {
-    hint.textContent = "";
+    hint.textContent = mode === "thinking" ? "Thinking…" : "";
   }
 
   requestLocation();
