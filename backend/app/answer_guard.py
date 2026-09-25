@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timezone
 
-from .autonomy import run as autonomous_run
+from .autonomy import run as autonomous_run, is_control_payload
 from .model_router import cascade
 from .public_reference import reply as reference_reply
 from .web_search import search, context as web_context
@@ -36,6 +36,14 @@ def _strip_source_footer(answer: str) -> str:
         if index >= 0:
             cut = min(cut, index)
     return text[:cut].rstrip()
+
+
+def _final_answer(prompt: str, value: object) -> str:
+    """Validate and clean a candidate answer before it can reach the UI."""
+    answer = _text(value)
+    if not answer or is_control_payload(answer):
+        return ''
+    return answer if _wants_sources(prompt) else _strip_source_footer(answer)
 
 
 def _text(value: object) -> str:
@@ -84,8 +92,10 @@ async def guaranteed_answer(
         else:
             answer = _text(result)
             route = ''
+        answer = _final_answer(prompt, answer)
         if answer:
-            return (answer if _wants_sources(prompt) else _strip_source_footer(answer)), route
+            return answer, route
+        autonomous_error = RuntimeError('Autonomous answer was internal tool-control data')
     except Exception as error:
         autonomous_error = error
 
@@ -129,20 +139,43 @@ async def guaranteed_answer(
         ]
         try:
             answer, route = await asyncio.wait_for(cascade(routes, messages), timeout=45)
-            answer = _text(answer)
-            if answer:
-                return (
-                    answer if _wants_sources(prompt) else _strip_source_footer(answer),
-                    _text(route),
-                )
+            cleaned = _final_answer(prompt, answer)
+            if cleaned:
+                return cleaned, _text(route)
+
+            retry_messages = [
+                {
+                    'role': 'system',
+                    'content': (
+                        'You are Itachi. Research is already complete. Return the final user-facing '
+                        'prose answer only. Do not request, call, describe, or output tools, functions, '
+                        'actions, planner JSON, or tool-call JSON. '
+                        + ('Include concise source links because the user explicitly requested sources.'
+                           if _wants_sources(prompt)
+                           else 'Do not include source/provider/API names or URLs.')
+                    ),
+                },
+                {
+                    'role': 'user',
+                    'content': (
+                        f'Question:\n{prompt}\n\n'
+                        f'Fresh web evidence:\n{evidence}\n\n'
+                        f'Additional context:\n{extra_context or "(none)"}'
+                    ),
+                },
+            ]
+            answer, route = await asyncio.wait_for(cascade(routes, retry_messages), timeout=45)
+            cleaned = _final_answer(prompt, answer)
+            if cleaned:
+                return cleaned, _text(route)
         except Exception:
             pass
 
     try:
         fallback = await asyncio.wait_for(reference_reply(prompt, bool(allow_web)), timeout=20)
-        fallback = _text(fallback)
+        fallback = _final_answer(prompt, fallback)
         if fallback:
-            return (fallback if _wants_sources(prompt) else _strip_source_footer(fallback)), ''
+            return fallback, ''
     except Exception:
         pass
 
