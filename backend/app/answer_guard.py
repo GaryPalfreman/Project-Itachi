@@ -8,6 +8,7 @@ from .autonomy import run as autonomous_run
 from .model_router import cascade
 from .public_reference import reply as reference_reply
 from .web_search import search, context as web_context
+from .rapidapi_tools import web_search as rapid_web_search
 
 
 def _text(value: object) -> str:
@@ -32,6 +33,7 @@ async def guaranteed_answer(
     allow_web: bool = True,
     depth: str = 'auto',
     extra_context: str = '',
+    rapidapi_key: str = '',
 ) -> tuple[str, str]:
     """Return non-empty answer text and the internal route used when available."""
     autonomous_error = None
@@ -45,6 +47,7 @@ async def guaranteed_answer(
                 depth=depth,
                 return_route=True,
                 extra_context=extra_context,
+                rapidapi_key=rapidapi_key,
             ),
             timeout=_timeout_for(depth),
         )
@@ -64,6 +67,14 @@ async def guaranteed_answer(
     if allow_web and web_key:
         try:
             fresh_results = await asyncio.wait_for(search(prompt, web_key), timeout=15)
+        except Exception:
+            fresh_results = []
+    if allow_web and not fresh_results and rapidapi_key:
+        try:
+            fresh_results = await asyncio.wait_for(
+                rapid_web_search(prompt, rapidapi_key),
+                timeout=15,
+            )
         except Exception:
             fresh_results = []
 
