@@ -63,7 +63,7 @@ async def reply(prompt: str, allow_web: bool) -> str:
                   if any(word in (r.get('title', '') + ' ' + r.get('topic', '')).lower()
                          for word in keywords)][:3]
     if references:
-        return ('Saved public reference excerpts (not an AI-generated answer):\n\n' +
+        return ('Saved public reference excerpts:\n\n' +
                 '\n\n'.join(f"**{r['title']}** — {r['url']}\n{r['excerpt']}"
                             for r in references))
     try:
