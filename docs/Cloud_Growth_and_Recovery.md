@@ -8,8 +8,10 @@ Itachi is designed to keep working without a personal computer or a single AI pr
 2. **GitHub Actions** issues an ephemeral `GITHUB_TOKEN` to each workflow run. It is not a personal access token and is used only for public GitHub discovery/metadata.
 3. **Supabase** is an optional second durable copy of the public knowledge corpus. A server-side key is stored only in GitHub Actions secrets; public Streamlit users never receive it.
 4. **Zep Cloud** can optionally receive a throttled subset of newly learned public facts as a tertiary graph-memory layer; duplicate hashes and a six-hour ingestion throttle protect its free allowance.
-5. **GitHub Actions artifacts** retain rolling recovery snapshots.
-6. **Optional HTTPS mirrors** can receive the already-public catalog through dedicated mirror credentials.
+5. **Google Drive** can mirror recovery snapshots through a dedicated Itachi Google account and OAuth grant.
+6. **MEGA** can mirror the same recovery tree to a dedicated encrypted storage account.
+7. **GitHub Actions artifacts** retain rolling recovery snapshots.
+8. **Optional HTTPS mirrors** can receive the already-public catalog through dedicated mirror credentials.
 
 The system never needs `127.0.0.1` for its hosted learning path.
 
@@ -77,3 +79,6 @@ Public web knowledge can be shared globally. User conversations are different: t
 Zep is not the primary store. If you create a dedicated free Zep project and add its key to the repository secret `ITACHI_ZEP_API_KEY`, the hourly workflow checks whether six hours have elapsed and sends at most three unseen public records. This prevents duplicate ingestion and keeps usage well below the free-tier design target under normal operation.
 
 Zep credentials are never committed to GitHub or exposed to Streamlit users.
+
+
+Google Drive and MEGA setup and recovery are documented in [[Google_Drive_and_MEGA]].

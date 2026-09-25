@@ -45,6 +45,25 @@ jobs:
           else
             echo "Zep replica not configured"
           fi
+      - name: Mirror recovery snapshot to Google Drive when configured
+        env:
+          ITACHI_GOOGLE_CLIENT_ID: ${{ secrets.ITACHI_GOOGLE_CLIENT_ID }}
+          ITACHI_GOOGLE_CLIENT_SECRET: ${{ secrets.ITACHI_GOOGLE_CLIENT_SECRET }}
+          ITACHI_GOOGLE_REFRESH_TOKEN: ${{ secrets.ITACHI_GOOGLE_REFRESH_TOKEN }}
+          ITACHI_GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.ITACHI_GOOGLE_DRIVE_FOLDER_ID }}
+        run: python -m scripts.sync_google_drive
+      - name: Mirror recovery snapshot to MEGA when configured
+        env:
+          ITACHI_MEGA_EMAIL: ${{ secrets.ITACHI_MEGA_EMAIL }}
+          ITACHI_MEGA_PASSWORD: ${{ secrets.ITACHI_MEGA_PASSWORD }}
+        run: |
+          if [ -z "$ITACHI_MEGA_EMAIL" ] || [ -z "$ITACHI_MEGA_PASSWORD" ]; then
+            echo "MEGA recovery mirror not configured"
+            exit 0
+          fi
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq rclone
+          bash scripts/sync_mega_rclone.sh
       - name: Keep recovery artifacts
         uses: actions/upload-artifact@v4
         with:
