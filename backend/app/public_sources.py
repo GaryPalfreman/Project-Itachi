@@ -15,10 +15,11 @@ class _Plain(HTMLParser):
 
 async def wikipedia(query: str) -> list[dict[str, str]]:
     headers = {'User-Agent':'ProjectItachi/0.4 (https://github.com/GaryPalfreman/Project-Itachi)'}
-    async with httpx.AsyncClient(timeout=12, headers=headers) as client:
+    async with httpx.AsyncClient(timeout=12) as client:
         response = await client.get(
             'https://en.wikipedia.org/w/rest.php/v1/search/page',
             params={'q':query[:200], 'limit':4},
+            headers=headers,
         )
         response.raise_for_status()
         pages = response.json().get('pages', [])
@@ -32,6 +33,7 @@ async def wikipedia(query: str) -> list[dict[str, str]]:
         titles = '|'.join(page['key'][:200] for page in selected)
         extract_response = await client.get(
             'https://en.wikipedia.org/w/api.php',
+            headers=headers,
             params={
                 'action':'query',
                 'prop':'extracts',
