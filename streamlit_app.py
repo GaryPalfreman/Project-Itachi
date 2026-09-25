@@ -299,7 +299,12 @@ if prompt:
          f'Web evidence:\n{web_context(web_results) or "(none)"}\n\n'
          f'Question: {prompt}'}]
 
-    ordered = rank(configured, prompt, st.session_state.route_feedback, jev_task) if route_name == 'Automatic' else (
+    ordered = rank(
+        configured,
+        prompt,
+        st.session_state.route_feedback,
+        task_override=jev_task,
+    ) if route_name == 'Automatic' else (
         [route for route in configured if route.name == route_name] +
         [route for route in configured if route.name != route_name])
 

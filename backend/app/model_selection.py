@@ -20,16 +20,29 @@ def task_for(prompt: str) -> str:
 def rank(routes: list[ModelRoute], prompt: str, feedback: dict | None = None,
          task_override: str = '') -> list[ModelRoute]:
     """Stable ranking; never selects an unconfigured route or stores the prompt."""
-    task = task_override if task_override in {'general', 'code', 'research', 'reasoning'} else task_for(prompt)
-    feedback = feedback or {}
+    valid_tasks = {'general', 'code', 'research', 'reasoning'}
+    task = (
+        task_override
+        if isinstance(task_override, str) and task_override in valid_tasks
+        else task_for(prompt)
+    )
+    feedback = feedback if isinstance(feedback, dict) else {}
+
     def score(route):
-        identity = (route.name + ' ' + route.model).lower()
+        identity = (str(route.name) + ' ' + str(route.model)).lower()
         match = (task == 'code' and any(x in identity for x in ('coder', 'codex', 'code', 'qwen'))
                  or task == 'reasoning' and any(x in identity for x in ('reason', 'nemotron', 'deepseek'))
                  or task == 'research' and any(x in identity for x in ('search', 'research')))
         stats = feedback.get(route.name, {})
-        success, failure = stats.get('success', 0), stats.get('failure', 0)
-        return 2 * bool(match) + 4 * (success + 1) / (success + failure + 2)
+        if not isinstance(stats, dict):
+            stats = {}
+        success = stats.get('success', 0)
+        failure = stats.get('failure', 0)
+        success = success if isinstance(success, (int, float)) else 0
+        failure = failure if isinstance(failure, (int, float)) else 0
+        denominator = success + failure + 2
+        reliability = (success + 1) / denominator if denominator > 0 else 0.5
+        return 2 * bool(match) + 4 * reliability
     return sorted(routes, key=score, reverse=True)
 
 

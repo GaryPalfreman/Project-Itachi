@@ -20,6 +20,13 @@ class SelectionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(rank(routes, 'Write a Python function', feedback)[0].name, 'general')
         self.assertNotIn('prompt', str(feedback))
 
+    def test_rank_ignores_malformed_task_override_and_feedback(self):
+        routes = [ModelRoute('general', 'https://example.org/v1', 'llama')]
+        self.assertEqual(
+            rank(routes, 'hello', {'general': 'bad-stats'}, task_override={'choice': 'code'})[0].name,
+            'general',
+        )
+
     def test_only_live_free_text_chat_models_discovered(self):
         catalog = {'data': [
             {'id':'org/free', 'architecture':{'output_modalities':['text']},
