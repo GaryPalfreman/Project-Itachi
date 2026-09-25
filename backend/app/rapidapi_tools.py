@@ -110,13 +110,12 @@ async def finance_lookup(query: str, key: str) -> str:
             f"change={quote_data.get('09. change', 'n/a')} "
             f"({quote_data.get('10. change percent', 'n/a')})."
         )
-    output += " Source: https://rapidapi.com/search/alpha-vantage"
     _cache_put(cache_key, output, 120)
     return output
 
 
 async def city_lookup(query: str, key: str) -> str:
-    """Return structured city/region/country candidates from GeoDB."""
+    """Return structured city/region/country candidates."""
     query = str(query or "").strip()[:100]
     if not query or not key:
         return ""
@@ -155,8 +154,7 @@ async def city_lookup(query: str, key: str) -> str:
                 + (f"; population={population}" if isinstance(population, (int, float)) else "")
                 + (f"; coordinates={lat},{lon}" if isinstance(lat, (int, float)) and isinstance(lon, (int, float)) else "")
             )
-    output = "GeoDB city matches: " + (" | ".join(lines) if lines else "no match")
-    output += " Source: https://rapidapi.com/wirefreethought/api/geodb-cities"
+    output = "Structured city data: " + (" | ".join(lines) if lines else "no match")
     _cache_put(cache_key, output, 900)
     return output
 
@@ -201,7 +199,7 @@ async def word_lookup(word: str, key: str) -> str:
         output += "; synonyms=" + ", ".join(dict.fromkeys(synonyms[:12]))
     if pronunciation:
         output += f"; pronunciation={pronunciation}"
-    output += ". Source: https://rapidapi.com/dpventures/api/wordsapi"
+    output += "."
     _cache_put(cache_key, output, 3600)
     return output
 
