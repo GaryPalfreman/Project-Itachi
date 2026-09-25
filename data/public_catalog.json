@@ -1,13 +1,13 @@
 {
-  "generated_at": "2026-09-25T09:13:19.582Z",
-  "origin": "Public GitHub repository metadata; untrusted until reviewed",
+  "generated_at": "2026-09-25T10:19:53.388889+00:00",
+  "origin": "Public GitHub metadata and attributed Wikipedia excerpts; untrusted until reviewed",
   "repositories": [
     {
       "name": "fastapi/fastapi",
       "url": "https://github.com/fastapi/fastapi",
       "description": "FastAPI framework, high performance, easy to learn, fast to code, ready for production",
       "license": "MIT",
-      "stars": 102599,
+      "stars": 102601,
       "updated": "2026-09-18T21:24:37Z"
     },
     {
@@ -16,14 +16,14 @@
       "description": "Streamlit — A faster way to build and share data apps.",
       "license": "Apache-2.0",
       "stars": 45832,
-      "updated": "2026-09-25T08:07:37Z"
+      "updated": "2026-09-25T10:12:57Z"
     },
     {
       "name": "ollama/ollama",
       "url": "https://github.com/ollama/ollama",
       "description": "Get up and running with Kimi, GLM, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
       "license": "MIT",
-      "stars": 181670,
+      "stars": 181673,
       "updated": "2026-09-25T02:27:55Z"
     },
     {
@@ -32,7 +32,7 @@
       "description": "🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training. ",
       "license": "Apache-2.0",
       "stars": 166629,
-      "updated": "2026-09-25T09:10:08Z"
+      "updated": "2026-09-25T10:16:42Z"
     },
     {
       "name": "SYSTRAN/faster-whisper",
@@ -49,6 +49,50 @@
       "license": "GPL-3.0",
       "stars": 5677,
       "updated": "2026-09-17T20:50:01Z"
+    }
+  ],
+  "references": [
+    {
+      "title": "Artificial intelligence",
+      "url": "https://en.wikipedia.org/wiki/Artificial_intelligence",
+      "excerpt": "Artificial intelligence (AI) is the capability of computational systems to perform tasks typically associated with human intelligence, such as learning",
+      "license": "CC BY-SA (Wikipedia excerpt)",
+      "topic": "artificial intelligence"
+    },
+    {
+      "title": "Artificial general intelligence",
+      "url": "https://en.wikipedia.org/wiki/Artificial_general_intelligence",
+      "excerpt": "Artificial general intelligence (AGI) is a hypothetical type of artificial intelligence that matches or surpasses human capabilities across virtually",
+      "license": "CC BY-SA (Wikipedia excerpt)",
+      "topic": "artificial intelligence"
+    },
+    {
+      "title": "Software engineering",
+      "url": "https://en.wikipedia.org/wiki/Software_engineering",
+      "excerpt": "Software engineering is a branch of both computer science and engineering focused on designing, developing, testing, and maintaining software applications",
+      "license": "CC BY-SA (Wikipedia excerpt)",
+      "topic": "software engineering"
+    },
+    {
+      "title": "Empirical software engineering",
+      "url": "https://en.wikipedia.org/wiki/Empirical_software_engineering",
+      "excerpt": "Empirical software engineering (ESE) (also known as Evidence-based software engineering) is a subfield of software engineering (SE) research that uses",
+      "license": "CC BY-SA (Wikipedia excerpt)",
+      "topic": "software engineering"
+    },
+    {
+      "title": "Mechanical engineering",
+      "url": "https://en.wikipedia.org/wiki/Mechanical_engineering",
+      "excerpt": "Mechanical engineering is the study of physical machines and mechanisms that may involve force and movement. It is an engineering branch that combines",
+      "license": "CC BY-SA (Wikipedia excerpt)",
+      "topic": "mechanical engineering"
+    },
+    {
+      "title": "List of Historic Mechanical Engineering Landmarks",
+      "url": "https://en.wikipedia.org/wiki/List_of_Historic_Mechanical_Engineering_Landmarks",
+      "excerpt": "following is a list of Historic Mechanical Engineering Landmarks as designated by the American Society of Mechanical Engineers (ASME) since it began the",
+      "license": "CC BY-SA (Wikipedia excerpt)",
+      "topic": "mechanical engineering"
     }
   ]
 }
