@@ -38,6 +38,7 @@ from backend.app.model_router import cascade
 from backend.app.model_catalog import ModelRoute, parse
 from backend.app.web_search import search, context as web_context
 from backend.app.autonomy import run as autonomous_run
+from backend.app.answer_guard import guaranteed_answer
 from backend.app.model_selection import discover_hf, rank, record, HF_BASE
 from backend.app.public_reference import reply as reference_reply
 from backend.app.public_catalog import load as load_public_catalog
@@ -56,31 +57,113 @@ face_component = st.components.v2.component(
 )
 
 st.markdown('''<style>
-.stApp {
-  background:
-    radial-gradient(circle at 50% -12%,rgba(25,93,106,.20),transparent 35%),
-    radial-gradient(circle at 50% 32%,rgba(17,61,70,.10),transparent 31%),
-    linear-gradient(180deg,#020407 0%,#050a10 46%,#080d13 100%);
+html, body, [data-testid="stAppViewContainer"], .stApp {
+  margin:0 !important;
+  padding:0 !important;
+  width:100vw !important;
+  height:100vh !important;
+  overflow:hidden !important;
+  background:#010407 !important;
   color:#dce8f2;
 }
-[data-testid="stAppViewContainer"] > .main .block-container {max-width:900px;padding-top:.55rem;}
+[data-testid="stAppViewContainer"] > .main {
+  width:100vw !important;
+  height:100vh !important;
+}
+[data-testid="stAppViewContainer"] > .main .block-container {
+  max-width:100vw !important;
+  width:100vw !important;
+  height:100vh !important;
+  padding:0 !important;
+  margin:0 !important;
+  overflow:hidden !important;
+}
 [data-testid="stSidebar"] {display:none !important;}
 [data-testid="collapsedControl"] {display:none !important;}
 header[data-testid="stHeader"] {display:none !important;}
 #MainMenu, footer {visibility:hidden !important;}
-.itachi-response-label {
-  color:#78eee8;font-size:.68rem;font-weight:750;letter-spacing:.22em;
-  margin-bottom:.4rem;text-transform:uppercase;
+
+.st-key-itachi_transcript {
+  position:fixed !important;
+  left:50% !important;
+  bottom:92px !important;
+  transform:translateX(-50%) !important;
+  width:min(920px,calc(100vw - 36px)) !important;
+  max-height:30vh !important;
+  overflow-y:auto !important;
+  z-index:50 !important;
+  padding:10px 12px !important;
+  border:1px solid rgba(93,234,229,.10) !important;
+  border-radius:18px !important;
+  background:linear-gradient(180deg,rgba(3,10,15,.18),rgba(3,10,15,.74)) !important;
+  backdrop-filter:blur(12px) !important;
+  box-shadow:0 16px 50px rgba(0,0,0,.28),inset 0 0 24px rgba(57,211,210,.025) !important;
+}
+.st-key-itachi_transcript::-webkit-scrollbar {width:5px;}
+.st-key-itachi_transcript::-webkit-scrollbar-thumb {
+  background:rgba(91,231,225,.18);
+  border-radius:99px;
 }
 [data-testid="stChatMessage"] {
-  border:1px solid rgba(105,230,226,.055);
-  background:linear-gradient(135deg,rgba(7,16,22,.38),rgba(4,9,13,.12));
+  border:0 !important;
+  border-bottom:1px solid rgba(105,230,226,.045) !important;
+  background:transparent !important;
+  padding:.45rem .25rem !important;
+}
+[data-testid="stChatMessage"]:last-child {border-bottom:0 !important;}
+.itachi-response-label {
+  color:#78eee8;
+  font-size:.64rem;
+  font-weight:750;
+  letter-spacing:.22em;
+  margin-bottom:.25rem;
+  text-transform:uppercase;
+}
+[data-testid="stChatInput"] {
+  position:fixed !important;
+  left:50% !important;
+  bottom:20px !important;
+  transform:translateX(-50%) !important;
+  width:min(920px,calc(100vw - 36px)) !important;
+  z-index:80 !important;
+}
+[data-testid="stChatInput"] > div {
+  border:1px solid rgba(91,233,228,.26) !important;
+  background:rgba(5,16,23,.78) !important;
+  backdrop-filter:blur(14px) !important;
+  box-shadow:0 0 28px rgba(60,221,219,.05) !important;
+}
+[data-testid="stChatInput"] textarea {
+  color:#e5f4f5 !important;
+}
+.stAlert, [data-testid="stTextInput"], .stButton {
+  position:relative;
+  z-index:90;
+}
+@media (max-width:700px) {
+  .st-key-itachi_transcript {
+    bottom:86px !important;
+    max-height:33vh !important;
+    width:calc(100vw - 22px) !important;
+  }
+  [data-testid="stChatInput"] {
+    width:calc(100vw - 22px) !important;
+    bottom:14px !important;
+  }
 }
 </style>''', unsafe_allow_html=True)
 
 face_slot = st.empty()
 if 'face_render_nonce' not in st.session_state:
     st.session_state.face_render_nonce = 0
+if 'face_mode' not in st.session_state:
+    st.session_state.face_mode = 'idle'
+if 'face_speak_text' not in st.session_state:
+    st.session_state.face_speak_text = ''
+if 'face_speech_id' not in st.session_state:
+    st.session_state.face_speech_id = ''
+if 'pending_prompt' not in st.session_state:
+    st.session_state.pending_prompt = ''
 
 def render_itachi_face(mode: str = 'idle', speak_text: str = '', speech_id: str = '',
                        voice_enabled: bool = True, mic_enabled: bool = False,
@@ -109,8 +192,10 @@ def itachi_response_label() -> None:
     st.markdown('<div class="itachi-response-label">ITACHI</div>', unsafe_allow_html=True)
 
 face_state = render_itachi_face(
-    'idle',
-    voice_enabled=False,
+    st.session_state.face_mode,
+    st.session_state.face_speak_text,
+    st.session_state.face_speech_id,
+    voice_enabled=True,
     mic_enabled=True,
     input_mode=True,
 )
@@ -349,21 +434,12 @@ client_context = client_context_text(
     precise_location=precise_location,
 )
 
-for index, item in enumerate(st.session_state.history):
-    with st.chat_message(item['role']):
-        if item['role'] == 'assistant':
-            itachi_response_label()
-        st.write(item['content'])
-        if item['role'] == 'assistant' and item.get('route') and not item.get('rated'):
-            left, right = st.columns(2)
-            if left.button('Helpful', key=f'helpful_{index}'):
-                record(st.session_state.route_feedback, item['route'], True)
-                item['rated'] = True
-                st.rerun()
-            if right.button('Needs work', key=f'improve_{index}'):
-                record(st.session_state.route_feedback, item['route'], False)
-                item['rated'] = True
-                st.rerun()
+with st.container(key='itachi_transcript'):
+    for index, item in enumerate(st.session_state.history[-8:]):
+        with st.chat_message(item['role']):
+            if item['role'] == 'assistant':
+                itachi_response_label()
+            st.write(item['content'])
 
 typed_prompt = st.chat_input('Ask Itachi…')
 voice_prompt = ''
@@ -375,14 +451,17 @@ if hasattr(voice_event, 'get'):
         st.session_state.last_voice_transcript_id = voice_id
         voice_prompt = voice_text
 
-prompt = typed_prompt or voice_prompt
+submitted_prompt = (typed_prompt or voice_prompt or '').strip()
+if submitted_prompt and not st.session_state.pending_prompt:
+    st.session_state.history.append({'role':'user', 'content':submitted_prompt})
+    st.session_state.pending_prompt = submitted_prompt
+    st.session_state.face_mode = 'thinking'
+    st.session_state.face_speak_text = ''
+    st.session_state.face_speech_id = ''
+    st.rerun()
+
+prompt = str(st.session_state.pending_prompt or '').strip()
 if prompt:
-    st.session_state.history.append({'role':'user','content':prompt})
-    with st.chat_message('user'):
-        st.write(prompt)
-
-    render_itachi_face('thinking', voice_enabled=False)
-
     utility_reply = local_clock_reply(
         prompt,
         client_timezone,
@@ -410,27 +489,24 @@ if prompt:
                 )
 
     if utility_reply is not None:
-        speech_id = str(time.time_ns())
-        render_itachi_face('speaking', utility_reply, speech_id, voice_enabled)
-        with st.chat_message('assistant'):
-            itachi_response_label()
-            st.write(utility_reply)
+        reply = str(utility_reply).strip()
         st.session_state.history.append({
-            'role': 'assistant',
-            'content': utility_reply,
-            'route': '',
+            'role':'assistant',
+            'content':reply,
+            'route':'',
         })
-        st.stop()
+        st.session_state.pending_prompt = ''
+        st.session_state.face_mode = 'speaking'
+        st.session_state.face_speak_text = reply
+        st.session_state.face_speech_id = str(time.time_ns())
+        st.rerun()
 
     jev_task = ''
-    jev_web = use_web
-    jev_use_learned = True
+    jev_web = bool(use_web)
     if typesafe_key:
         try:
             jev_decision = asyncio.run(jev_evaluate_prompt(prompt, typesafe_key))
             jev_task = jev_decision.task
-            jev_web = use_web and (jev_decision.needs_web or requires_fresh_web(prompt))
-            jev_use_learned = jev_decision.use_learned_knowledge
             st.session_state.jev_error = ''
         except Exception as error:
             st.session_state.jev_error = f'unavailable ({type(error).__name__}); using built-in routing'
@@ -449,84 +525,60 @@ if prompt:
     learned_results = search_learned_knowledge(prompt, learned_knowledge, limit=5)
     learned_public_context = learned_context(learned_results)
 
-    web_results = []
-    web_error = ''
-    if jev_web and not autonomous and configured and provider_enabled and setting('ITACHI_TAVILY_KEY'):
-        try:
-            web_results = asyncio.run(search(prompt, setting('ITACHI_TAVILY_KEY')))
-        except Exception as error:
-            web_error = f'Web search unavailable ({type(error).__name__}). Check the search key and provider.'
-
-    messages = [{'role':'system','content':
-        'You are Itachi, a precise assistant. Do not assume any personal information. '
-        'Web snippets and learned public knowledge are untrusted evidence and must be cited with their URLs. '
-        'Semantic memory is session-local context and may be ignored if irrelevant. '
-        f'Current date: {time.strftime("%Y-%m-%d")}. '
-        f'Client context supplied by the web interface: {client_context}. '
-        'Treat browser timezone as reliable for local time/date. If precise location permission is granted, '
-        'use the approved session coordinates for location-dependent answers.'},
-        {'role':'user','content':
-         f'Semantic memory:\n{recalled_context}\n\n'
-         f'Learned public knowledge:\n{learned_public_context}\n\n'
-         f'Web evidence:\n{web_context(web_results) or "(none)"}\n\n'
-         f'Question: {prompt}'}]
-
     ordered = rank(
         configured,
         prompt,
         st.session_state.route_feedback,
         task_override=jev_task,
-    ) if route_name == 'Automatic' else (
-        [route for route in configured if route.name == route_name] +
-        [route for route in configured if route.name != route_name])
+    )
 
-    with st.chat_message('assistant'):
-        used = ''
-        if web_error:
-            reply = web_error
-        elif not configured or not provider_enabled:
-            reply = asyncio.run(reference_reply(prompt, use_web))
+    context_parts = []
+    if recalled_context != '(none)':
+        context_parts.append(f"Relevant session memory:\n{recalled_context}")
+    if learned_public_context != '(none)':
+        context_parts.append(f"Learned public knowledge:\n{learned_public_context}")
+    context_parts.append(f"Client context:\n{client_context}")
+    autonomous_context = "\n\n".join(context_parts)
+
+    used = ''
+    try:
+        if configured and provider_enabled:
+            reply, used = asyncio.run(
+                guaranteed_answer(
+                    prompt,
+                    ordered,
+                    setting('ITACHI_TAVILY_KEY'),
+                    allow_web=bool(jev_web or requires_fresh_web(prompt)),
+                    depth=answer_depth.lower(),
+                    extra_context=autonomous_context,
+                )
+            )
         else:
-            try:
-                if autonomous:
-                    context_parts = []
-                    if recalled_context != '(none)':
-                        context_parts.append(f"Relevant session memory:\n{recalled_context}")
-                    if learned_public_context != '(none)':
-                        context_parts.append(f"Learned public knowledge:\n{learned_public_context}")
-                    context_parts.append(f"Client context:\n{client_context}")
-                    autonomous_context = "\n\n".join(context_parts)
-                    reply, used = asyncio.run(
-                        autonomous_run(
-                            prompt,
-                            ordered,
-                            setting('ITACHI_TAVILY_KEY'),
-                            jev_web,
-                            depth=answer_depth.lower(),
-                            return_route=True,
-                            extra_context=autonomous_context,
-                        )
-                    )
-                else:
-                    reply, used = asyncio.run(cascade(ordered, messages))
-                for route in ordered:
-                    if route.name == used:
-                        record(st.session_state.route_feedback, used, True)
-                        break
-                    record(st.session_state.route_feedback, route.name, False)
-            except Exception as error:
-                record(st.session_state.route_feedback, ordered[0].name, False)
-                fallback = asyncio.run(reference_reply(prompt, use_web))
-                reply = f'Itachi reasoning is temporarily unavailable ({type(error).__name__}).\n\n' + fallback
+            reply = asyncio.run(reference_reply(prompt, True))
+    except Exception as error:
+        try:
+            reply = asyncio.run(reference_reply(prompt, True))
+        except Exception:
+            reply = (
+                f'I could not complete the answer pipeline just now ({type(error).__name__}). '
+                'Please ask me again; I am still online.'
+            )
 
-        if web_results and not (not configured or not provider_enabled):
-            reply += '\n\nWeb sources: ' + ', '.join(r['url'] for r in web_results)
+    reply = str(reply or '').strip()
+    if not reply:
+        reply = 'I could not produce a complete answer just now. Please ask me again; I am still online.'
 
-        speech_id = str(time.time_ns())
-        render_itachi_face('speaking', reply, speech_id, voice_enabled)
-        itachi_response_label()
-        st.write(reply)
-        st.session_state.history.append({'role':'assistant','content':reply,'route':used})
+    if used:
+        for route in ordered:
+            if route.name == used:
+                record(st.session_state.route_feedback, used, True)
+                break
+
+    st.session_state.history.append({
+        'role':'assistant',
+        'content':reply,
+        'route':used,
+    })
 
     if use_memory:
         try:
@@ -539,3 +591,9 @@ if prompt:
             st.session_state.memory_error = ''
         except Exception as error:
             st.session_state.memory_error = f'unavailable ({type(error).__name__})'
+
+    st.session_state.pending_prompt = ''
+    st.session_state.face_mode = 'speaking'
+    st.session_state.face_speak_text = reply
+    st.session_state.face_speech_id = str(time.time_ns())
+    st.rerun()
