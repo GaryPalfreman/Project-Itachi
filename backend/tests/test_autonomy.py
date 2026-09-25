@@ -73,6 +73,24 @@ class AutonomousTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('Revised answer', answer)
         self.assertEqual(cascade.await_count, 4)
 
+    async def test_provider_identity_is_not_exposed(self):
+        cascade = AsyncMock(side_effect=[
+            ('Direct answer', 'NVIDIA Nemotron Ultra'),
+            ('Direct answer', 'NVIDIA Nemotron Ultra'),
+        ])
+        with patch.object(autonomy, 'cascade', new=cascade):
+            answer = await autonomy.run('hello there', [object()], depth='quick')
+            answer_with_route, route = await autonomy.run(
+                'hello there',
+                [object()],
+                depth='quick',
+                return_route=True,
+            )
+        self.assertEqual(answer, 'Direct answer')
+        self.assertEqual(answer_with_route, 'Direct answer')
+        self.assertEqual(route, 'NVIDIA Nemotron Ultra')
+        self.assertNotIn('Answered by', answer)
+
     async def test_default_answer_does_not_read_vault(self):
         with patch.object(orchestration, 'settings', replace(orchestration.settings, knowledge_enabled=False)), \
              patch.object(orchestration.vault, 'search', side_effect=AssertionError('vault accessed')), \
