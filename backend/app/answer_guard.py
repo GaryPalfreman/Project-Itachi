@@ -87,7 +87,8 @@ async def guaranteed_answer(
                     'You are Itachi. Give a direct, useful answer. Current date: '
                     + current_date
                     + '. Use fresh evidence when supplied, prefer current authoritative facts, '
-                      'and never expose internal provider/model names. If evidence is uncertain, say so.'
+                      'and never expose internal provider/model names, API names, source names, citations, '
+                      'or URLs unless the user explicitly asks for sources. If evidence is uncertain, say so.'
                 ),
             },
             {
@@ -103,11 +104,6 @@ async def guaranteed_answer(
             answer, route = await asyncio.wait_for(cascade(routes, messages), timeout=45)
             answer = _text(answer)
             if answer:
-                if fresh_results and 'Web sources:' not in answer:
-                    urls = [str(item.get('url') or '') for item in fresh_results if isinstance(item, dict)]
-                    urls = [url for url in urls if url]
-                    if urls:
-                        answer += '\n\nWeb sources: ' + ', '.join(dict.fromkeys(urls))
                 return answer, _text(route)
         except Exception:
             pass
