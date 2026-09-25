@@ -19,7 +19,7 @@ ollama list
 python3 scripts/local_inventory.py
 ```
 
-The default model matches the previously configured lightweight model on your M2 Mac. The inventory checks the vault path and Ollama's local model list without changing either. Select an installed Nemotron, Qwen or DeepSeek variant by updating `ITACHI_REASONING_MODEL` in `.env`; larger models can exhaust the 8 GB shared memory. Set `ITACHI_FALLBACK_URL=http://127.0.0.1:11434/v1` and `ITACHI_FALLBACK_MODEL` to another **installed** Ollama model for local fallback. A separate hosted compatible endpoint can also serve as fallback if you deliberately configure it. For up to five routes, set `ITACHI_MODEL_ROUTES_JSON` in `.env` to the JSON array described in [[Hosted_Testing]]; it overrides the reasoning/fallback pair for the local face's reasoning route too.
+The inventory checks Ollama's local model list without scanning personal files. Select an installed Nemotron, Qwen or DeepSeek variant by updating `ITACHI_REASONING_MODEL` in `.env`; larger models require sufficient memory. Set `ITACHI_FALLBACK_URL=http://127.0.0.1:11434/v1` and `ITACHI_FALLBACK_MODEL` to another **installed** Ollama model for local fallback. For up to five routes, set `ITACHI_MODEL_ROUTES_JSON` to the JSON array described in [[Hosted_Testing]].
 
 Install a Piper voice from the active upstream project:
 
@@ -29,7 +29,7 @@ python -m piper.download_voices en_US-lessac-medium
 python -m piper -m en_US-lessac-medium -f /tmp/itachi-voice.wav -- 'Voice system ready.'
 ```
 
-Keep the downloaded voice files in that directory, or set `ITACHI_PIPER_VOICE` to the full `.onnx` path. Edit `.env` to point `ITACHI_VAULT` to a real Obsidian vault path; start with the bundled example vault if you want to inspect the system first. On the first STT request, faster-whisper downloads its selected model; subsequent runs use its local cache. Microphone access requires browser permission.
+Keep the downloaded voice files in that directory, or set `ITACHI_PIPER_VOICE` to the full `.onnx` path. Knowledge access is disabled by default, even if a vault path is set. Do not enable it or point it at personal data for this setup. On the first STT request, faster-whisper downloads its selected model; subsequent runs use its local cache. Microphone access requires browser permission.
 
 Run from the `itachi` project root:
 

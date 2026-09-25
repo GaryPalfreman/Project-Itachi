@@ -16,7 +16,7 @@ The FastAPI process listens on `127.0.0.1:8765`. It serves the UI, WebSocket, va
 
 ## Data flows
 
-1. Prompt: UI → `/ws` → retrieve matching vault excerpts → selected route → answer event → UI.
+1. Prompt: UI → `/ws` → selected route → answer event → UI. Autonomous mode plans bounded research steps. Knowledge retrieval is disabled unless explicitly configured.
 2. Voice in: microphone analyser drives the face; browser records a clip; `/api/stt` transcribes locally; recognized text enters the prompt flow.
 3. Voice out: `/api/tts` generates WAV locally; browser analyser reads the playback signal and drives the face.
 4. Vault write: an explicit `POST /api/note` creates a new `.md` note. Conversation replies never write notes implicitly.

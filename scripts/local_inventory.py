@@ -6,10 +6,11 @@ from urllib.request import urlopen
 
 
 def main():
-    vault = Path(os.path.expanduser(os.getenv('ITACHI_VAULT', '~/Documents/Engineering-Knowledge')))
-    print('Vault:', vault, '| exists:', vault.is_dir())
-    if vault.is_dir():
-        print('Markdown notes:', sum(1 for _ in vault.rglob('*.md')))
+    if os.getenv('ITACHI_ENABLE_KNOWLEDGE', '').lower() == 'true':
+        vault = Path(os.path.expanduser(os.getenv('ITACHI_VAULT', 'examples/vault')))
+        print('Configured knowledge directory:', vault, '| exists:', vault.is_dir())
+    else:
+        print('Knowledge access disabled; no files scanned.')
     try:
         with urlopen('http://127.0.0.1:11434/api/tags', timeout=3) as response:
             models = json.load(response).get('models', [])

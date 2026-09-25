@@ -26,19 +26,25 @@ async def index():
 
 @app.get('/api/health')
 async def health():
-    return {'status':'ready', 'vault':str(settings.vault), 'voice':bool(settings.piper_voice),
+    return {'status':'ready', 'knowledge_enabled':settings.knowledge_enabled, 'voice':bool(settings.piper_voice),
             'openclaw':bool(settings.openclaw_url), 'jev':bool(settings.jev_url)}
 
 @app.get('/api/notes')
 async def notes(q: str = ''):
+    if not settings.knowledge_enabled:
+        raise HTTPException(403, 'Knowledge access is disabled')
     return vault.search(q[:200])
 
 @app.get('/api/graph')
 async def graph():
+    if not settings.knowledge_enabled:
+        raise HTTPException(403, 'Knowledge access is disabled')
     return vault.graph()
 
 @app.get('/api/note')
 async def note(path: str):
+    if not settings.knowledge_enabled:
+        raise HTTPException(403, 'Knowledge access is disabled')
     try:
         return {'path':path, 'content':vault.read(path)}
     except (ValueError, OSError) as e:
@@ -46,6 +52,8 @@ async def note(path: str):
 
 @app.post('/api/note', status_code=201)
 async def create_note(note: Note):
+    if not settings.knowledge_enabled:
+        raise HTTPException(403, 'Knowledge access is disabled')
     try:
         vault.write(note.path, note.content)
         return {'path':note.path}
@@ -80,7 +88,7 @@ async def ws(socket: WebSocket):
             request_id = str(incoming.get('id', ''))[:80]
             prompt = str(incoming.get('text', '')).strip()[:8000]
             route = str(incoming.get('route', 'reasoning'))
-            if not prompt or route not in {'reasoning','code','openclaw','research'}:
+            if not prompt or route not in {'auto','reasoning','code','openclaw','research'}:
                 await socket.send_json({'type':'error','id':request_id,'message':'Invalid prompt or route'})
                 continue
             await socket.send_json({'type':'state','id':request_id,'state':'thinking'})

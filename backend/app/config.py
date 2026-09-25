@@ -10,7 +10,8 @@ if load_dotenv:
 
 @dataclass(frozen=True)
 class Config:
-    vault: Path = Path(os.getenv('ITACHI_VAULT', str(Path.home() / 'Documents' / 'Engineering-Knowledge'))).expanduser().resolve()
+    vault: Path = Path(os.getenv('ITACHI_VAULT', str(Path(__file__).resolve().parents[2] / 'examples' / 'vault'))).expanduser().resolve()
+    knowledge_enabled: bool = os.getenv('ITACHI_ENABLE_KNOWLEDGE', '').lower() == 'true'
     reasoning_url: str = os.getenv('ITACHI_REASONING_URL', 'http://127.0.0.1:11434/v1')
     reasoning_model: str = os.getenv('ITACHI_REASONING_MODEL', 'llama3.2:3b')
     reasoning_key: str = os.getenv('ITACHI_REASONING_KEY', '')

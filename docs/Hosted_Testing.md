@@ -1,47 +1,24 @@
 # Hosted Testing on Streamlit Community Cloud
 
-This is a temporary **testing console**. The full audio-reactive face, WebSocket transport, Piper voice, and local Obsidian write tools remain in the FastAPI app described in [[Deployment_Mac]]. The hosted console has text chat, a small visual pulse, a read-only ZIP import, and model fallback. It does not need a local GPU.
+The hosted console contains text chat, autonomous read-only research and model failover. It does not import notes, connect personal accounts, run arbitrary commands or mount local files. The audio-reactive face is served by the local FastAPI app in [[Deployment_Mac]].
 
-## Deploy
+## Deployment
 
-1. Open [Streamlit Community Cloud](https://share.streamlit.io/) and sign in with GitHub.
-2. Choose **Create app → Deploy a public app from GitHub** (repository visibility and app viewing access are separate settings).
-3. Repository: `GaryPalfreman/Project-Itachi`; branch: `main`; main file path: `streamlit_app.py`.
-4. In **Advanced settings**, select Python 3.12. Deploy **without model secrets** first and verify search-only mode. The app cannot reach `127.0.0.1` on your Mac.
-5. In app settings, set viewing access to **private** before adding model secrets or uploading engineering notes. Also set `ITACHI_ACCESS_PASSCODE` to a strong independent passcode before enabling paid providers. A passcode in the app is an extra gate, not a substitute for private viewing access. If private access is unavailable, use only nonsensitive demo notes and keep the real vault off the host.
-6. Add secrets for a model endpoint reachable from the cloud, then check chat with a small Markdown ZIP. Keep the real vault out of the public repository.
+1. Select repository `GaryPalfreman/Project-Itachi`, branch `main`, main file `streamlit_app.py`, Python 3.12.
+2. Set the app's viewing access to **private** before adding provider credentials. Add a strong independent `ITACHI_ACCESS_PASSCODE` in app secrets as an additional access gate.
+3. Add one compatible model endpoint or an ordered provider list. The app cannot reach Ollama at `127.0.0.1` on another computer.
+4. Optionally add `ITACHI_TAVILY_KEY` for internet research. Check **Allow internet searches for this question** when derived search terms may leave the app.
 
-Cloud secrets example (replace the provider, model and key with credentials **you** control):
+Example secrets (replace placeholders with independently authorized provider details):
 
 ```toml
-ITACHI_REASONING_URL = "https://YOUR_PROVIDER/v1"
-ITACHI_REASONING_MODEL = "YOUR_MODEL"
-ITACHI_REASONING_KEY = "YOUR_PRIVATE_KEY"
-ITACHI_FALLBACK_URL = "https://api.groq.com/openai/v1"
-ITACHI_FALLBACK_MODEL = "llama-3.3-70b-versatile"
-ITACHI_FALLBACK_KEY = "YOUR_GROQ_KEY"
-ITACHI_ACCESS_PASSCODE = "YOUR_STRONG_INDEPENDENT_PASSCODE"
-ITACHI_TAVILY_KEY = "YOUR_TAVILY_API_KEY"
+ITACHI_ACCESS_PASSCODE = "GENERATE_A_NEW_RANDOM_PASSPHRASE"
+ITACHI_MODEL_ROUTES_JSON = '[{"name":"primary","url":"https://PROVIDER_ONE/v1","model":"MODEL_ONE","key":"PROVIDER_ONE_KEY"},{"name":"backup","url":"https://PROVIDER_TWO/v1","model":"MODEL_TWO","key":"PROVIDER_TWO_KEY"}]'
+ITACHI_TAVILY_KEY = "OPTIONAL_WEB_SEARCH_KEY"
 ```
 
-The Groq Llama URL and model are an **example**, not an account connection. Verify the model is available in your account. The router makes one fallback attempt on quota/rate limit (402/429), timeout, transport outage, selected server errors, or a recognized context-limit error. It does not fail over on invalid credentials or silently continue without an answer. A fallback also has its own rate limits; it cannot provide unlimited tokens. See [[Protocol_and_State_Rules]].
+For a single provider, use `ITACHI_REASONING_URL`, `ITACHI_REASONING_MODEL` and `ITACHI_REASONING_KEY`. Up to five model routes are supported. Quota, timeout, context and selected server failures can trigger failover; invalid credentials do not. Each provider has its own rates and limits.
 
-For more than two providers, replace the individual route secrets with one ordered JSON string. Each route is an OpenAI-compatible `/v1` base URL, a model name and its own server-side key:
+## Autonomous research
 
-```toml
-ITACHI_MODEL_ROUTES_JSON = '[{"name":"cloud","url":"https://YOUR_PROVIDER/v1","model":"YOUR_MODEL","key":"YOUR_KEY"},{"name":"llama","url":"https://YOUR_OTHER_PROVIDER/v1","model":"YOUR_LLAMA_MODEL","key":"YOUR_OTHER_KEY"}]'
-```
-
-The model selector chooses the first route to try. On a recoverable error, the remaining configured routes are tried once in order. `http://127.0.0.1:11434/v1` is valid only when Streamlit and Ollama run on the **same computer**; in Streamlit Community Cloud it points to the cloud container, not your Mac. Do not paste an OpenClaw gateway operator token into a public deployment.
-
-Checking “Search internet” sends only the current question to Tavily. Tavily returns links and snippets that are passed to the answer model; the response includes source URLs. Configure the Tavily key and the access passcode first. This is an opt-in API request, and provider usage may incur charges. See [[Internet_and_Accounts]].
-
-## Obsidian export
-
-On the Mac, copy only the Markdown notes you want to test into a staging folder and ZIP that folder. The import ignores `.obsidian`, non-Markdown files and traversal paths. It is limited to 2,000 notes, 30 MB of ZIP bytes, 50 MB uncompressed, and 256 KB per note. The app keeps note text in the Streamlit server session and sends relevant excerpts in prompts to the selected model provider. Clear the session when finished. It does not upload or synchronize your real `~/Documents/Engineering-Knowledge` vault automatically.
-
-The live vault described in your engineering notes uses **separate** `PROVENANCE` (DOCUMENTED, OBSERVED, MEASURED, REPORTED, INFERRED, UNKNOWN) and `KNOWLEDGE_STATUS` (RESEARCHED, VERIFIED, STANDARD-DEPENDENT, FIELD-VALIDATED) fields. The testing console preserves source text as-is and does not upgrade either classification. Do not put employer-confidential documents into the public GitHub repository or public app.
-
-## Later continuous web deployment
-
-For a persistent web version of the complete FastAPI UI, deploy the existing server on a private Docker host with authentication, TLS and durable private storage. Streamlit Community Cloud is suited to testing the text workflows, but does not mount the vault on your Mac. Keep the same model routing and explicit knowledge import boundaries.
+The model chooses up to three read-only actions from `web_search` and `calculate`, then synthesizes an answer. Internet access also requires the web checkbox and Tavily key. The tools cannot edit files, run commands, access accounts or escalate privileges. See [[Autonomy_and_Permissions]].
