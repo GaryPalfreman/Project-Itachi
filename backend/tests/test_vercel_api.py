@@ -28,6 +28,19 @@ class VercelAPITests(unittest.TestCase):
         self.assertEqual(self.client.post("/api/unlock", json={"passcode": "wrong"}).status_code, 401)
         self.assertEqual(self.client.post("/api/unlock", json={"passcode": "preview-passcode"}).status_code, 200)
 
+    def test_vercel_filters_local_only_model_routes(self):
+        local_routes = (
+            '[{"name":"local","url":"http://127.0.0.1:11434/v1",'
+            '"model":"llama3.2:3b"}]'
+        )
+        with patch.dict(os.environ, {
+            "ITACHI_MODEL_ROUTES_JSON": local_routes,
+            "ITACHI_NVIDIA_API_KEY": "test-key",
+        }, clear=False):
+            routes = index._configured_routes()
+        self.assertTrue(routes)
+        self.assertTrue(all(route.url.startswith("https://") for route in routes))
+
     def test_local_time_is_answered_without_models(self):
         response = self.client.post("/api/chat", json={
             "prompt": "What time is it?",
