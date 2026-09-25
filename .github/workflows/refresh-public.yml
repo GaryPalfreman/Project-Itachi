@@ -35,6 +35,16 @@ jobs:
           ITACHI_SUPABASE_URL: ${{ secrets.ITACHI_SUPABASE_URL }}
           ITACHI_SUPABASE_SERVER_KEY: ${{ secrets.ITACHI_SUPABASE_SERVER_KEY }}
         run: python -m scripts.sync_supabase_knowledge
+      - name: Replicate a throttled subset to Zep when configured
+        env:
+          ITACHI_ZEP_API_KEY: ${{ secrets.ITACHI_ZEP_API_KEY }}
+        run: |
+          if [ -n "$ITACHI_ZEP_API_KEY" ]; then
+            python -m pip install 'zep-cloud>=3,<4'
+            python -m scripts.sync_zep_knowledge
+          else
+            echo "Zep replica not configured"
+          fi
       - name: Keep recovery artifacts
         uses: actions/upload-artifact@v4
         with:
