@@ -48,6 +48,7 @@ jobs:
       - name: Mirror recovery snapshot to Google Drive when configured
         env:
           ITACHI_GOOGLE_API_KEY: ${{ secrets.ITACHI_GOOGLE_API_KEY }}
+          ITACHI_GOOGLE_OAUTH_JSON: ${{ secrets.ITACHI_GOOGLE_OAUTH_JSON }}
           ITACHI_GOOGLE_CLIENT_ID: ${{ secrets.ITACHI_GOOGLE_CLIENT_ID }}
           ITACHI_GOOGLE_CLIENT_SECRET: ${{ secrets.ITACHI_GOOGLE_CLIENT_SECRET }}
           ITACHI_GOOGLE_REFRESH_TOKEN: ${{ secrets.ITACHI_GOOGLE_REFRESH_TOKEN }}

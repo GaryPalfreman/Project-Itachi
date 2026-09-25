@@ -24,6 +24,7 @@ from backend.app.public_catalog import load as load_public_catalog
 from backend.app.semantic_memory import SessionSemanticMemory, embed, format_context
 from backend.app.public_knowledge import load as load_learned_knowledge, search as search_learned_knowledge, context as learned_context
 from backend.app.jev import evaluate_prompt as jev_evaluate_prompt
+from backend.app.google_oauth import oauth_config, issue_state, valid_state, authorization_url, exchange_code
 
 st.markdown('''<style>
  .stApp { background: radial-gradient(circle at top,#132936,#080e17 65%); color:#dce8f2; }
@@ -43,6 +44,52 @@ if access_passcode and not st.session_state.get('authenticated', False):
         st.session_state.authenticated = True
         st.rerun()
     st.stop()
+
+google_oauth_json = setting('ITACHI_GOOGLE_OAUTH_JSON')
+google_client_secret = setting('ITACHI_GOOGLE_CLIENT_SECRET')
+google_oauth_ready = bool(google_oauth_json or google_client_secret)
+google_refresh_token = ''
+
+if access_passcode and st.session_state.get('authenticated', False) and google_oauth_ready:
+    try:
+        google_client_id, google_client_secret_value, google_redirect_uri = oauth_config(
+            google_oauth_json,
+            setting('ITACHI_GOOGLE_CLIENT_ID'),
+            google_client_secret,
+            setting('ITACHI_GOOGLE_REDIRECT_URI'),
+        )
+        google_code = str(st.query_params.get('code', '') or '')
+        google_state = str(st.query_params.get('state', '') or '')
+        google_error = str(st.query_params.get('error', '') or '')
+
+        if google_error:
+            st.error(f'Google Drive authorization failed: {google_error}')
+        elif google_code:
+            if not google_state or not valid_state(google_state, google_client_secret_value):
+                st.error('Google Drive authorization state was invalid or expired.')
+            else:
+                try:
+                    token_payload = asyncio.run(
+                        exchange_code(
+                            google_code,
+                            google_client_id,
+                            google_client_secret_value,
+                            google_redirect_uri,
+                        )
+                    )
+                    google_refresh_token = str(token_payload.get('refresh_token') or '')
+                    if google_refresh_token:
+                        st.session_state.google_refresh_token = google_refresh_token
+                    else:
+                        st.warning(
+                            'Google authorized the account but did not return a refresh token. '
+                            'Revoke the app grant if necessary and authorize again.'
+                        )
+                except Exception as error:
+                    st.error(f'Google token exchange failed ({type(error).__name__}).')
+            st.query_params.clear()
+    except ValueError:
+        pass
 
 try:
     configured = parse(setting('ITACHI_MODEL_ROUTES_JSON'))
@@ -126,6 +173,7 @@ with st.sidebar:
     st.caption(f"Answer models available: {len(configured) if provider_enabled else 0}")
     st.caption(f"Nemotron semantic memory: {'ready' if memory_enabled else 'off'}")
     st.caption(f"JEV decision layer: {'ready' if typesafe_key else 'off'}")
+    st.caption(f"Google OAuth bootstrap: {'ready' if google_oauth_ready else 'off'}")
     if st.session_state.memory_error:
         st.caption(f"Memory status: {st.session_state.memory_error}")
     if st.session_state.jev_error:
@@ -140,6 +188,48 @@ with st.sidebar:
     use_memory = st.checkbox('Use Nemotron semantic memory', value=memory_enabled, disabled=not memory_enabled,
                              help='Embeds this session remotely with NVIDIA Nemotron-3-Embed-1B. Memory stays in this Streamlit session.')
     route_name = st.selectbox('Answer model', ['Automatic'] + [route.name for route in configured])
+
+    if access_passcode and st.session_state.get('authenticated', False):
+        with st.expander('Google Drive admin'):
+            if not google_oauth_ready:
+                st.info(
+                    'Add ITACHI_GOOGLE_CLIENT_SECRET or ITACHI_GOOGLE_OAUTH_JSON '
+                    'to Streamlit Secrets to enable Google Drive authorization.'
+                )
+            else:
+                try:
+                    google_client_id, google_client_secret_value, google_redirect_uri = oauth_config(
+                        google_oauth_json,
+                        setting('ITACHI_GOOGLE_CLIENT_ID'),
+                        google_client_secret,
+                        setting('ITACHI_GOOGLE_REDIRECT_URI'),
+                    )
+                    oauth_state = issue_state(google_client_secret_value)
+                    oauth_url = authorization_url(
+                        google_client_id,
+                        google_redirect_uri,
+                        oauth_state,
+                        'project.itachi.storage@gmail.com',
+                    )
+                    st.link_button('Connect Itachi Google Drive', oauth_url)
+                    st.caption(
+                        'Uses Google drive.file access and requests offline authorization '
+                        'so the scheduled backup can refresh access without you being present.'
+                    )
+                    stored_refresh = str(st.session_state.get('google_refresh_token') or '')
+                    if stored_refresh:
+                        st.success('Google Drive authorization completed.')
+                        st.text_area(
+                            'ITACHI_GOOGLE_REFRESH_TOKEN — copy once to GitHub Actions secrets',
+                            value=stored_refresh,
+                            height=100,
+                        )
+                        st.caption(
+                            'After saving it in GitHub Actions secrets, clear this browser session '
+                            'or reload the app. The token is not written to GitHub by Itachi.'
+                        )
+                except ValueError as error:
+                    st.info(str(error))
 
 for index, item in enumerate(st.session_state.history):
     with st.chat_message(item['role']):

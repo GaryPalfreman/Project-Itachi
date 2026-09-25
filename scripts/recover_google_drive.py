@@ -6,7 +6,8 @@ from pathlib import Path
 
 import httpx
 
-from scripts.sync_google_drive import DRIVE_API, DEFAULT_FOLDER_ID, access_token, find_file
+from scripts.sync_google_drive import DRIVE_API, DEFAULT_FOLDER_ID, access_token, find_file, folder_accessible, find_fallback_folder
+from backend.app.google_oauth import oauth_config
 
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = {
@@ -28,21 +29,33 @@ def download_file(client: httpx.Client, file_id: str, destination: Path, api_key
 
 
 if __name__ == "__main__":
-    client_id = os.getenv("ITACHI_GOOGLE_CLIENT_ID", "").strip()
-    client_secret = os.getenv("ITACHI_GOOGLE_CLIENT_SECRET", "").strip()
+    raw_oauth = os.getenv("ITACHI_GOOGLE_OAUTH_JSON", "")
     refresh_token = os.getenv("ITACHI_GOOGLE_REFRESH_TOKEN", "").strip()
     folder_id = os.getenv("ITACHI_GOOGLE_DRIVE_FOLDER_ID", DEFAULT_FOLDER_ID).strip() or DEFAULT_FOLDER_ID
     api_key = os.getenv("ITACHI_GOOGLE_API_KEY", "").strip()
 
-    if not all((client_id, client_secret, refresh_token)):
-        raise SystemExit("Google Drive recovery credentials are not configured")
+    client_id, client_secret, _ = oauth_config(
+        raw_oauth,
+        os.getenv("ITACHI_GOOGLE_CLIENT_ID", ""),
+        os.getenv("ITACHI_GOOGLE_CLIENT_SECRET", ""),
+        os.getenv("ITACHI_GOOGLE_REDIRECT_URI", ""),
+    )
+    if not refresh_token:
+        raise SystemExit("Google Drive refresh token is not configured")
 
     token = access_token(client_id, client_secret, refresh_token)
     headers = {"Authorization": "Bearer " + token}
     recovered = []
     with httpx.Client(timeout=30, headers=headers) as client:
+        effective_folder_id = (
+            folder_id
+            if folder_accessible(client, folder_id, api_key)
+            else find_fallback_folder(client, api_key)
+        )
+        if not effective_folder_id:
+            raise RuntimeError("No authorized Itachi recovery folder exists in Google Drive")
         for name, destination in TARGETS.items():
-            file_id = find_file(client, name, folder_id, api_key)
+            file_id = find_file(client, name, effective_folder_id, api_key)
             if not file_id:
                 continue
             download_file(client, file_id, destination, api_key)

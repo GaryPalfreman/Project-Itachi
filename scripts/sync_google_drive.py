@@ -12,6 +12,8 @@ from pathlib import Path
 
 import httpx
 
+from backend.app.google_oauth import oauth_config
+
 ROOT = Path(__file__).resolve().parents[1]
 FILES = [
     ROOT / "data" / "public_catalog.json",
@@ -22,6 +24,8 @@ TOKEN_URL = "https://oauth2.googleapis.com/token"
 DRIVE_API = "https://www.googleapis.com/drive/v3"
 UPLOAD_API = "https://www.googleapis.com/upload/drive/v3"
 DEFAULT_FOLDER_ID = "1fFi6bHUEgjU5cz9M9V8uYaNme1cGgX37"
+FALLBACK_FOLDER_NAME = "Project-Itachi-Recovery"
+FOLDER_MIME = "application/vnd.google-apps.folder"
 
 
 def access_token(client_id: str, client_secret: str, refresh_token: str) -> str:
@@ -58,7 +62,7 @@ def find_file(client: httpx.Client, name: str, folder_id: str, api_key: str = ""
             "fields": "files(id,name)",
             "pageSize": 10,
         },
-        headers={"x-goog-api-key": api_key} if api_key else None,
+        headers=_api_key_header(api_key),
     )
     response.raise_for_status()
     files = response.json().get("files", [])
@@ -68,6 +72,77 @@ def find_file(client: httpx.Client, name: str, folder_id: str, api_key: str = ""
     return item.get("id") if isinstance(item, dict) else None
 
 
+def _api_key_header(api_key: str) -> dict[str, str] | None:
+    return {"x-goog-api-key": api_key} if api_key else None
+
+
+def folder_accessible(client: httpx.Client, folder_id: str, api_key: str = "") -> bool:
+    if not folder_id:
+        return False
+    response = client.get(
+        DRIVE_API + f"/files/{folder_id}",
+        params={"fields": "id,mimeType,capabilities(canAddChildren)"},
+        headers=_api_key_header(api_key),
+    )
+    if response.status_code in {403, 404}:
+        return False
+    response.raise_for_status()
+    payload = response.json()
+    return (
+        isinstance(payload, dict)
+        and payload.get("mimeType") == FOLDER_MIME
+        and bool((payload.get("capabilities") or {}).get("canAddChildren", True))
+    )
+
+
+def find_fallback_folder(client: httpx.Client, api_key: str = "") -> str | None:
+    response = client.get(
+        DRIVE_API + "/files",
+        params={
+            "q": (
+                f"name = '{_quote_query(FALLBACK_FOLDER_NAME)}' "
+                f"and mimeType = '{FOLDER_MIME}' and trashed = false"
+            ),
+            "spaces": "drive",
+            "fields": "files(id,name)",
+            "pageSize": 10,
+        },
+        headers=_api_key_header(api_key),
+    )
+    response.raise_for_status()
+    files = response.json().get("files", [])
+    if isinstance(files, list) and files and isinstance(files[0], dict):
+        existing = files[0].get("id")
+        if isinstance(existing, str) and existing:
+            return existing
+    return None
+
+
+def find_or_create_fallback_folder(client: httpx.Client, api_key: str = "") -> str:
+    existing = find_fallback_folder(client, api_key)
+    if existing:
+        return existing
+
+    response = client.post(
+        DRIVE_API + "/files",
+        params={"fields": "id"},
+        headers=_api_key_header(api_key),
+        json={"name": FALLBACK_FOLDER_NAME, "mimeType": FOLDER_MIME},
+    )
+    response.raise_for_status()
+    folder_id = response.json().get("id")
+    if not isinstance(folder_id, str) or not folder_id:
+        raise RuntimeError("Google Drive did not return the recovery folder ID")
+    return folder_id
+
+
+def ensure_recovery_folder(client: httpx.Client, preferred_folder_id: str,
+                           api_key: str = "") -> tuple[str, bool]:
+    if folder_accessible(client, preferred_folder_id, api_key):
+        return preferred_folder_id, False
+    return find_or_create_fallback_folder(client, api_key), True
+
+
 def create_metadata(client: httpx.Client, name: str, folder_id: str, api_key: str = "") -> str:
     payload: dict[str, object] = {"name": name}
     if folder_id:
@@ -75,7 +150,7 @@ def create_metadata(client: httpx.Client, name: str, folder_id: str, api_key: st
     response = client.post(
         DRIVE_API + "/files",
         params={"fields": "id"},
-        headers={"x-goog-api-key": api_key} if api_key else None,
+        headers=_api_key_header(api_key),
         json=payload,
     )
     response.raise_for_status()
@@ -104,23 +179,41 @@ def upload_file(client: httpx.Client, path: Path, folder_id: str, api_key: str =
 
 
 if __name__ == "__main__":
-    client_id = os.getenv("ITACHI_GOOGLE_CLIENT_ID", "").strip()
-    client_secret = os.getenv("ITACHI_GOOGLE_CLIENT_SECRET", "").strip()
+    raw_oauth = os.getenv("ITACHI_GOOGLE_OAUTH_JSON", "")
     refresh_token = os.getenv("ITACHI_GOOGLE_REFRESH_TOKEN", "").strip()
     folder_id = os.getenv("ITACHI_GOOGLE_DRIVE_FOLDER_ID", DEFAULT_FOLDER_ID).strip() or DEFAULT_FOLDER_ID
     api_key = os.getenv("ITACHI_GOOGLE_API_KEY", "").strip()
 
-    if not all((client_id, client_secret, refresh_token)):
-        print("Google Drive recovery mirror not configured")
+    try:
+        client_id, client_secret, _ = oauth_config(
+            raw_oauth,
+            os.getenv("ITACHI_GOOGLE_CLIENT_ID", ""),
+            os.getenv("ITACHI_GOOGLE_CLIENT_SECRET", ""),
+            os.getenv("ITACHI_GOOGLE_REDIRECT_URI", ""),
+        )
+    except ValueError:
+        print("Google Drive OAuth client is not configured")
+        raise SystemExit(0)
+
+    if not refresh_token:
+        print("Google Drive refresh token is not configured")
         raise SystemExit(0)
 
     token = access_token(client_id, client_secret, refresh_token)
     headers = {"Authorization": "Bearer " + token}
     completed = []
     with httpx.Client(timeout=30, headers=headers) as client:
+        effective_folder_id, used_fallback = ensure_recovery_folder(client, folder_id, api_key)
         for path in FILES:
             if not path.exists():
                 continue
-            completed.append((path.name, upload_file(client, path, folder_id, api_key)))
+            completed.append((path.name, upload_file(client, path, effective_folder_id, api_key)))
 
-    print("Google Drive recovery files updated:", json.dumps(completed))
+    print(
+        "Google Drive recovery files updated:",
+        json.dumps(completed),
+        "folder:",
+        effective_folder_id,
+        "fallback:" if used_fallback else "preferred:",
+        used_fallback,
+    )

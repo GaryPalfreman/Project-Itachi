@@ -85,3 +85,34 @@ Choosing Google Drive or MEGA downloads the most recent public knowledge snapsho
 Do not put account passwords, OAuth client secrets, refresh tokens or recovery keys into source files, Streamlit UI fields, public issues, or README examples. Keep them in GitHub Actions/Streamlit secrets.
 
 The Google and MEGA accounts are recovery infrastructure, not user identity. Public Streamlit visitors should never receive direct access to either account.
+
+
+## Streamlit OAuth bootstrap
+
+The deployed app at `https://project-itachi.streamlit.app` can perform the one-time Google OAuth authorization.
+
+Recommended Streamlit secret:
+
+```toml
+ITACHI_GOOGLE_OAUTH_JSON = '''PASTE_THE_COMPLETE_GOOGLE_WEB_CLIENT_JSON_HERE'''
+```
+
+The app parses the client ID, client secret and redirect URI server-side. The secret JSON is never rendered or committed.
+
+After unlocking Itachi with `ITACHI_ACCESS_PASSCODE`, open **Google Drive admin** in the sidebar and choose **Connect Itachi Google Drive**. Google returns to the same Streamlit URL. Itachi validates the signed state and exchanges the authorization code server-side.
+
+If Google returns a refresh token, copy it once into the GitHub Actions repository secret:
+
+```
+ITACHI_GOOGLE_REFRESH_TOKEN
+```
+
+For GitHub Actions, you may also store the same complete OAuth JSON as:
+
+```
+ITACHI_GOOGLE_OAUTH_JSON
+```
+
+The backup/recovery scripts accept this single JSON secret, so separate client ID/client secret values are optional.
+
+The OAuth request uses `https://www.googleapis.com/auth/drive.file`, `access_type=offline` and `prompt=consent`. If the pre-existing recovery folder is not visible under the narrow `drive.file` grant, Itachi creates and reuses an app-owned `Project-Itachi-Recovery` folder instead of failing.
