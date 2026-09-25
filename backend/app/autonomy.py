@@ -175,7 +175,14 @@ async def run(prompt: str, routes: list, web_key: str = '', allow_web: bool = Fa
     findings = []
     sources = []
     access_requests = []
-    for action in actions_from_plan(plan, allow_web, action_limit):
+    planned_actions = actions_from_plan(plan, allow_web, action_limit)
+    if allow_web and requires_fresh_web(prompt) and not any(
+        action.get('tool') == 'web_search' for action in planned_actions
+    ):
+        planned_actions = [{'tool':'web_search', 'input':prompt[:300]}] + planned_actions
+        planned_actions = planned_actions[:action_limit]
+
+    for action in planned_actions:
         if action['tool'] == 'calculate':
             try:
                 findings.append(f"Calculation {action['input']}: {calculate(action['input'])}")
