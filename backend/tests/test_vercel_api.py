@@ -39,6 +39,13 @@ class VercelAPITests(unittest.TestCase):
         self.assertIn("Secure", cookie)
         self.assertIn("SameSite=strict", cookie)
 
+    def test_unlock_ignores_accidental_surrounding_whitespace(self):
+        response = self.client.post(
+            "/api/unlock",
+            json={"passcode": "  preview-passcode\n"},
+        )
+        self.assertEqual(response.status_code, 200)
+
     def test_chat_requires_unlocked_session_not_replayed_passcode(self):
         client = TestClient(index.app, base_url="https://testserver")
         response = client.post("/api/chat", json={

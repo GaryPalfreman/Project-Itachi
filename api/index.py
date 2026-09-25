@@ -73,10 +73,13 @@ def _access_required() -> bool:
 
 
 def _authorized(passcode: str) -> bool:
-    expected = _setting("ITACHI_ACCESS_PASSCODE")
+    # Vercel's dashboard and password managers can accidentally add a newline or
+    # surrounding whitespace to a long passphrase. Treat that presentation detail
+    # consistently without changing any meaningful character in the secret.
+    expected = _setting("ITACHI_ACCESS_PASSCODE").strip()
     if not expected:
         return True
-    return hmac.compare_digest(str(passcode or ""), expected)
+    return hmac.compare_digest(str(passcode or "").strip(), expected)
 
 
 def _session_token(expires_at: int) -> str:

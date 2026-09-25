@@ -469,13 +469,18 @@ export default function Home() {
   const unlock = async (event: FormEvent) => {
     event.preventDefault();
     setUnlockError("");
+    const submittedPasscode = passcode.trim();
+    if (!submittedPasscode) {
+      setUnlockError("Enter the access passcode");
+      return;
+    }
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 10000);
     try {
       const response = await fetch("/api/unlock", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passcode }),
+        body: JSON.stringify({ passcode: submittedPasscode }),
         credentials: "same-origin",
         signal: controller.signal,
       });
@@ -578,6 +583,8 @@ export default function Home() {
               value={passcode}
               onChange={(event) => setPasscode(event.target.value)}
               placeholder="Access passcode"
+              autoComplete="current-password"
+              spellCheck={false}
               autoFocus
             />
             <button type="submit">Unlock</button>
