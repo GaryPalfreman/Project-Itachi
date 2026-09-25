@@ -432,7 +432,7 @@ with st.sidebar:
         on_location_change=lambda: None,
     )
     location_value = getattr(location_result, 'location', None)
-    if isinstance(location_value, dict):
+    if hasattr(location_value, 'get'):
         precise_location = location_value.get('status') == 'granted'
         client_latitude = location_value.get('latitude') if precise_location else None
         client_longitude = location_value.get('longitude') if precise_location else None
