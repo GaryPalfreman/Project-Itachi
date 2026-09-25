@@ -6,12 +6,6 @@
       "excludeFiles": "{backend/tests/**,scripts/**,frontend/**,supabase/**,.github/**,streamlit_app.py,examples/**}"
     }
   },
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "/api/index.py"
-    }
-  ],
   "headers": [
     {
       "source": "/api/:path*",
