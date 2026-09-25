@@ -37,16 +37,241 @@ from backend.app.jev import evaluate_prompt as jev_evaluate_prompt
 from backend.app.google_oauth import oauth_config, issue_state, valid_state, authorization_url, exchange_code
 from backend.app.client_context import client_context_text, local_clock_reply, normalize_timezone, weather_reply
 
+LOCATION_COMPONENT_HTML = """
+<div class="geo-control">
+  <div>
+    <div class="geo-title">PRECISION LOCATION</div>
+    <div id="geo-status" class="geo-status">Not requested</div>
+  </div>
+  <div class="geo-actions">
+    <button id="geo-enable">Enable</button>
+    <button id="geo-clear" class="secondary">Clear session</button>
+  </div>
+</div>
+"""
+
+LOCATION_COMPONENT_CSS = """
+.geo-control {
+  display:flex; justify-content:space-between; align-items:center; gap:12px;
+  padding:10px 12px; border:1px solid rgba(99,235,228,.28); border-radius:12px;
+  background:linear-gradient(135deg,rgba(5,14,20,.88),rgba(11,25,33,.68));
+  box-shadow:inset 0 0 28px rgba(50,204,205,.06);
+  font-family:var(--st-font);
+}
+.geo-title {font-size:.68rem; letter-spacing:.15em; color:#77e7e1; font-weight:700;}
+.geo-status {font-size:.72rem; margin-top:4px; color:rgba(218,239,242,.72);}
+.geo-actions {display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;}
+.geo-actions button {
+  border:1px solid rgba(116,239,232,.4); border-radius:8px; padding:5px 9px;
+  background:rgba(27,77,87,.35); color:#dff; cursor:pointer; font-size:.72rem;
+}
+.geo-actions button:hover {background:rgba(53,152,159,.35);}
+.geo-actions button.secondary {opacity:.7;}
+"""
+
+LOCATION_COMPONENT_JS = """
+export default function(component) {
+  const parentElement = component.parentElement;
+  const setStateValue = component.setStateValue;
+  const data = component.data;
+  const enable = parentElement.querySelector("#geo-enable");
+  const clear = parentElement.querySelector("#geo-clear");
+  const status = parentElement.querySelector("#geo-status");
+  const current = (data && data.location) || {status: "idle"};
+
+  function render(value) {
+    const state = (value && value.status) || "idle";
+    if (state === "granted") {
+      const accuracy = Number.isFinite(value.accuracy) ? " · ±" + Math.round(value.accuracy) + " m" : "";
+      status.textContent = "Enabled for this session" + accuracy;
+    } else if (state === "denied") {
+      status.textContent = "Permission denied by browser";
+    } else if (state === "unavailable") {
+      status.textContent = "Location unavailable";
+    } else if (state === "requesting") {
+      status.textContent = "Waiting for browser permission…";
+    } else {
+      status.textContent = "Not requested";
+    }
+  }
+
+  render(current);
+
+  enable.onclick = function() {
+    if (!navigator.geolocation) {
+      const value = {status: "unavailable"};
+      render(value);
+      setStateValue("location", value);
+      return;
+    }
+    render({status: "requesting"});
+    navigator.geolocation.getCurrentPosition(
+      function(position) {
+        const value = {
+          status: "granted",
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          timestamp: Date.now()
+        };
+        render(value);
+        setStateValue("location", value);
+      },
+      function(error) {
+        const value = {
+          status: error.code === 1 ? "denied" : "unavailable",
+          code: error.code
+        };
+        render(value);
+        setStateValue("location", value);
+      },
+      {enableHighAccuracy: true, timeout: 12000, maximumAge: 300000}
+    );
+  };
+
+  clear.onclick = function() {
+    const value = {status: "idle"};
+    render(value);
+    setStateValue("location", value);
+  };
+}
+"""
+
+location_component = st.components.v2.component(
+    "itachi_location_permission",
+    html=LOCATION_COMPONENT_HTML,
+    css=LOCATION_COMPONENT_CSS,
+    js=LOCATION_COMPONENT_JS,
+)
+
 st.markdown('''<style>
- .stApp { background: radial-gradient(circle at top,#132936,#080e17 65%); color:#dce8f2; }
- h1 { letter-spacing:.22em; color:#8ee6df; }
- .node {width:110px;height:110px;border:2px dotted #70d7db;border-radius:50%;
- box-shadow:0 0 55px #2d98a177,inset 0 0 35px #39a3b055;margin:0 auto 14px;
- animation:pulse 3s ease-in-out infinite}
- @keyframes pulse {50% {transform:scale(1.09);box-shadow:0 0 80px #51e4dc99}}
- </style><div class="node"></div>''', unsafe_allow_html=True)
-st.title('ITACHI')
-st.caption('Hosted test console · no personal knowledge or accounts are loaded')
+:root {
+  --node-cyan:#66f5ef;
+  --node-soft:#36bfc4;
+  --node-ink:#030609;
+}
+.stApp {
+  background:
+    radial-gradient(circle at 50% -12%,rgba(29,103,115,.22),transparent 35%),
+    radial-gradient(circle at 50% 30%,rgba(17,61,70,.12),transparent 30%),
+    linear-gradient(180deg,#020407 0%,#050a10 46%,#080d13 100%);
+  color:#dce8f2;
+}
+[data-testid="stAppViewContainer"] > .main .block-container {max-width:900px;padding-top:1rem;}
+[data-testid="stSidebar"] {
+  background:linear-gradient(180deg,rgba(3,8,13,.99),rgba(7,15,22,.98));
+  border-right:1px solid rgba(104,238,233,.10);
+}
+.itachi-stage {
+  position:relative;width:min(440px,82vw);height:330px;margin:0 auto -8px;
+  display:flex;align-items:center;justify-content:center;
+  filter:drop-shadow(0 0 26px rgba(42,205,207,.18));
+}
+.itachi-grid {
+  position:absolute;inset:25px 28px 18px;
+  background-image:linear-gradient(rgba(94,228,224,.035) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(94,228,224,.035) 1px,transparent 1px);
+  background-size:22px 22px;
+  -webkit-mask-image:radial-gradient(circle,#000 25%,transparent 72%);
+  mask-image:radial-gradient(circle,#000 25%,transparent 72%);
+}
+.itachi-ring {
+  position:absolute;border-radius:50%;border:1px solid rgba(91,234,229,.24);
+  box-shadow:0 0 32px rgba(43,194,199,.08),inset 0 0 26px rgba(43,194,199,.05);
+}
+.ring-a {width:268px;height:268px;animation:nodeSpin 18s linear infinite;}
+.ring-b {width:224px;height:224px;border-style:dashed;animation:nodeSpinReverse 13s linear infinite;}
+.ring-c {width:184px;height:184px;border-color:rgba(147,174,181,.16);animation:ringPulse 3.8s ease-in-out infinite;}
+.itachi-orbit {
+  position:absolute;width:290px;height:290px;border-radius:50%;
+  background:conic-gradient(from 10deg,transparent 0 15%,rgba(91,244,236,.55) 17%,transparent 19% 48%,
+             rgba(91,244,236,.22) 50%,transparent 53% 83%,rgba(91,244,236,.45) 85%,transparent 87%);
+  -webkit-mask:radial-gradient(transparent 69%,#000 70% 72%,transparent 73%);
+  mask:radial-gradient(transparent 69%,#000 70% 72%,transparent 73%);
+  animation:nodeSpin 10s linear infinite;
+}
+.itachi-face {
+  position:relative;width:158px;height:190px;z-index:5;
+  clip-path:polygon(29% 2%,71% 2%,93% 23%,96% 67%,74% 94%,50% 100%,26% 94%,4% 67%,7% 23%);
+  background:linear-gradient(150deg,rgba(105,141,151,.13),rgba(4,9,14,.92) 34%,rgba(3,7,11,.98) 72%,rgba(63,105,114,.12));
+  border:1px solid rgba(104,230,227,.35);
+  box-shadow:inset 0 0 38px rgba(55,211,210,.10),0 0 42px rgba(42,195,196,.11);
+}
+.itachi-face:before {
+  content:"";position:absolute;inset:12px;
+  clip-path:polygon(31% 0,69% 0,92% 24%,90% 69%,70% 91%,50% 97%,30% 91%,10% 69%,8% 24%);
+  border:1px solid rgba(137,169,178,.18);background:rgba(2,6,10,.28);
+}
+.brow {
+  position:absolute;top:59px;width:54px;height:2px;z-index:8;
+  background:linear-gradient(90deg,transparent,#9cfaf5 35%,#3fded9 72%,transparent);
+  box-shadow:0 0 11px rgba(100,246,240,.72);
+}
+.brow-l {left:18px;transform:rotate(8deg)} .brow-r {right:18px;transform:rotate(-8deg)}
+.eye {
+  position:absolute;top:70px;width:42px;height:12px;z-index:9;
+  background:linear-gradient(90deg,transparent 3%,#b9fffb 42%,#55eee8 58%,transparent 97%);
+  clip-path:polygon(0 48%,24% 13%,79% 20%,100% 56%,74% 88%,22% 82%);
+  box-shadow:0 0 15px rgba(83,244,237,.65);animation:eyePulse 2.8s ease-in-out infinite;
+}
+.eye-l {left:24px}.eye-r {right:24px}
+.nose {
+  position:absolute;left:76px;top:79px;width:7px;height:50px;z-index:7;
+  border-left:1px solid rgba(110,229,226,.25);border-right:1px solid rgba(110,229,226,.08);
+  transform:skew(-4deg);
+}
+.mouth {
+  position:absolute;left:47px;top:143px;width:64px;height:8px;z-index:8;
+  border-top:1px solid rgba(101,228,224,.38);filter:drop-shadow(0 0 5px rgba(62,220,217,.22));
+}
+.core {
+  position:absolute;left:74px;top:108px;width:10px;height:10px;border-radius:50%;z-index:10;
+  background:#b9fffb;box-shadow:0 0 14px #62eee9,0 0 30px rgba(80,235,231,.55);
+  animation:corePulse 1.8s ease-in-out infinite;
+}
+.scan {
+  position:absolute;z-index:12;left:24px;right:24px;height:1px;top:20px;
+  background:linear-gradient(90deg,transparent,rgba(114,255,248,.75),transparent);
+  box-shadow:0 0 9px rgba(83,240,234,.5);animation:scanLine 4s ease-in-out infinite;
+}
+.itachi-wordmark {
+  text-align:center;font-size:2rem;font-weight:650;letter-spacing:.42em;margin-right:-.42em;
+  color:#b7d9de;text-shadow:0 0 18px rgba(72,229,224,.23);
+}
+.itachi-subtitle {
+  text-align:center;margin-top:6px;color:rgba(142,218,219,.62);font-size:.71rem;
+  letter-spacing:.20em;text-transform:uppercase;
+}
+.itachi-status {
+  width:max-content;margin:12px auto 14px;padding:5px 11px;border-radius:999px;
+  border:1px solid rgba(89,231,226,.18);color:rgba(154,236,232,.78);
+  background:rgba(5,19,24,.48);font-size:.65rem;letter-spacing:.15em;
+}
+@keyframes nodeSpin {to{transform:rotate(360deg)}}
+@keyframes nodeSpinReverse {to{transform:rotate(-360deg)}}
+@keyframes ringPulse {50%{transform:scale(1.045);opacity:.6}}
+@keyframes eyePulse {50%{filter:brightness(1.35);opacity:.8}}
+@keyframes corePulse {50%{transform:scale(1.45);opacity:.72}}
+@keyframes scanLine {0%,100%{transform:translateY(0);opacity:0}12%{opacity:.8}50%{transform:translateY(145px);opacity:.45}88%{opacity:.75}}
+@media (max-width:620px){
+  .itachi-stage{height:280px;transform:scale(.88);margin-top:-12px;margin-bottom:-28px}
+  .itachi-wordmark{font-size:1.55rem}
+}
+</style>
+<div class="itachi-stage">
+  <div class="itachi-grid"></div>
+  <div class="itachi-orbit"></div>
+  <div class="itachi-ring ring-a"></div><div class="itachi-ring ring-b"></div><div class="itachi-ring ring-c"></div>
+  <div class="itachi-face">
+    <div class="brow brow-l"></div><div class="brow brow-r"></div>
+    <div class="eye eye-l"></div><div class="eye eye-r"></div>
+    <div class="nose"></div><div class="mouth"></div><div class="core"></div><div class="scan"></div>
+  </div>
+</div>
+<div class="itachi-wordmark">ITACHI</div>
+<div class="itachi-subtitle">Obsidian Cognitive Node · Adaptive Intelligence Interface</div>
+<div class="itachi-status">NODE ONLINE · SESSION-LOCAL CONTEXT · BOUNDED AUTONOMY</div>
+''', unsafe_allow_html=True)
 
 access_passcode = setting('ITACHI_ACCESS_PASSCODE')
 if access_passcode and not st.session_state.get('authenticated', False):
@@ -177,7 +402,10 @@ if 'jev_error' not in st.session_state:
 memory_enabled = bool(nvidia_key)
 client_timezone = normalize_timezone(browser_context('timezone', 'UTC'))
 client_locale = browser_context('locale', '')
-client_context = client_context_text(client_timezone, client_locale)
+precise_location = False
+client_latitude = None
+client_longitude = None
+client_accuracy = None
 learned_knowledge = load_learned_knowledge()
 
 with st.sidebar:
@@ -191,6 +419,28 @@ with st.sidebar:
     st.caption(f"JEV decision layer: {'ready' if typesafe_key else 'off'}")
     st.caption(f"Google OAuth bootstrap: {'ready' if google_oauth_ready else 'off'}")
     st.caption(f"Browser timezone: {client_timezone}")
+    prior_component = st.session_state.get('itachi_location', {})
+    prior_location = (
+        prior_component.get('location', {'status': 'idle'})
+        if isinstance(prior_component, dict)
+        else {'status': 'idle'}
+    )
+    location_result = location_component(
+        data={'location': prior_location},
+        default={'location': prior_location},
+        key='itachi_location',
+        on_location_change=lambda: None,
+    )
+    location_value = getattr(location_result, 'location', None)
+    if hasattr(location_value, 'get'):
+        precise_location = location_value.get('status') == 'granted'
+        client_latitude = location_value.get('latitude') if precise_location else None
+        client_longitude = location_value.get('longitude') if precise_location else None
+        client_accuracy = location_value.get('accuracy') if precise_location else None
+    if precise_location:
+        st.caption('Precise location: enabled for this browser session only')
+    else:
+        st.caption('Precise location: off — timezone fallback active')
     if st.session_state.memory_error:
         st.caption(f"Memory status: {st.session_state.memory_error}")
     if st.session_state.jev_error:
@@ -198,10 +448,16 @@ with st.sidebar:
     if hf_token and st.session_state.get('hf_discovery_error'):
         st.caption('Hugging Face model discovery is unavailable; manually configured models may still work.')
     st.header('Tools')
-    autonomous = st.checkbox('Autonomous research', value=True,
-                             help='Itachi plans up to three read-only tool steps before answering.')
-    use_web = st.checkbox('Allow internet searches for this question', value=False,
-                          help='Uses Tavily with an authorized model, or public Wikipedia references when no model is connected.')
+    autonomous = st.checkbox('Autonomous reasoning & research', value=True,
+                             help='Itachi chooses bounded read-only tools, verifies evidence, and can critique deep answers.')
+    answer_depth = st.selectbox(
+        'Response depth',
+        ['Auto', 'Quick', 'Deep'],
+        index=0,
+        help='Auto adapts to the question. Quick minimizes model/tool calls. Deep adds broader research and a critique/revision pass.'
+    )
+    use_web = st.checkbox('Allow internet research', value=True,
+                          help='JEV and the planner decide when fresh public information is useful. Personal data and secrets are excluded from search queries.')
     use_memory = st.checkbox('Use Nemotron semantic memory', value=memory_enabled, disabled=not memory_enabled,
                              help='Embeds this session remotely with NVIDIA Nemotron-3-Embed-1B. Memory stays in this Streamlit session.')
     route_name = st.selectbox('Answer model', ['Automatic'] + [route.name for route in configured])
@@ -248,6 +504,12 @@ with st.sidebar:
                 except ValueError as error:
                     st.info(str(error))
 
+client_context = client_context_text(
+    client_timezone,
+    client_locale,
+    precise_location=precise_location,
+)
+
 for index, item in enumerate(st.session_state.history):
     with st.chat_message(item['role']):
         st.write(item['content'])
@@ -268,10 +530,25 @@ if prompt:
     with st.chat_message('user'):
         st.write(prompt)
 
-    utility_reply = local_clock_reply(prompt, client_timezone, client_locale)
+    utility_reply = local_clock_reply(
+        prompt,
+        client_timezone,
+        client_locale,
+        client_latitude,
+        client_longitude,
+        client_accuracy,
+    )
     if utility_reply is None:
         try:
-            utility_reply = asyncio.run(weather_reply(prompt, client_timezone, client_locale))
+            utility_reply = asyncio.run(
+                weather_reply(
+                    prompt,
+                    client_timezone,
+                    client_locale,
+                    client_latitude,
+                    client_longitude,
+                )
+            )
         except Exception as error:
             if any(word in prompt.lower() for word in ('weather', 'forecast', 'temperature')):
                 utility_reply = (
@@ -370,6 +647,7 @@ if prompt:
                             ordered,
                             setting('ITACHI_TAVILY_KEY'),
                             jev_web,
+                            depth=answer_depth.lower(),
                         )
                     )
                     used = next((r.name for r in ordered if f'[Answered by {r.name}]' in reply), ordered[0].name)

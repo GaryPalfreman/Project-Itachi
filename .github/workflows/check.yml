@@ -32,7 +32,7 @@ jobs:
           from streamlit.testing.v1 import AppTest
           app = AppTest.from_file('streamlit_app.py').run()
           assert not app.exception
-          assert app.title[0].value == 'ITACHI'
+          assert len(app.chat_input) == 1
           PY
   javascript:
     runs-on: ubuntu-latest

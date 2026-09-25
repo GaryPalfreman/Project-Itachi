@@ -19,6 +19,18 @@ class AutonomousTests(unittest.IsolatedAsyncioTestCase):
         raw = '{"actions":[{"tool":"web_search","input":"fact"},{"tool":"calculate","input":"2+2"},{"tool":"write_file","input":"x"}]}'
         self.assertEqual(autonomy.actions_from_plan(raw, False), [{'tool':'calculate','input':'2+2'}])
 
+    def test_depth_selection(self):
+        self.assertEqual(autonomy.depth_for('hello there'), 'quick')
+        self.assertEqual(autonomy.depth_for('Please do a comprehensive architecture comparison'), 'deep')
+        self.assertEqual(autonomy.depth_for('Explain caching with a few examples'), 'standard')
+        self.assertEqual(autonomy.depth_for('hello', 'deep'), 'deep')
+
+    def test_plan_honors_deep_action_limit(self):
+        raw = '{"actions":[' + ','.join(
+            '{"tool":"calculate","input":"2+2"}' for _ in range(6)
+        ) + ']}'
+        self.assertEqual(len(autonomy.actions_from_plan(raw, False, 5)), 5)
+
     def test_account_request_preparation_contacts_nothing(self):
         self.assertIn('No login was created', prepare('https://example.org/'))
         for url in ('http://example.org', 'https://127.0.0.1/',
@@ -30,7 +42,7 @@ class AutonomousTests(unittest.IsolatedAsyncioTestCase):
     async def test_account_request_is_explicitly_pending(self):
         plan = '{"actions":[{"tool":"request_access","input":"https://example.org/"}]}'
         with patch.object(autonomy, 'cascade', new=AsyncMock(side_effect=[(plan, 'local'), ('Response', 'local')])):
-            reply = await autonomy.run('Get access', [object()])
+            reply = await autonomy.run('Get access now with a public account request', [object()], depth='standard')
         self.assertIn('Access requests pending review:', reply)
         self.assertIn('No login was created', reply)
 
@@ -39,9 +51,27 @@ class AutonomousTests(unittest.IsolatedAsyncioTestCase):
         results = [{'title':'Saturn', 'url':'https://example.org/saturn', 'excerpt':'Rings'}]
         with patch.object(autonomy, 'cascade', new=AsyncMock(side_effect=[(plan, 'local'), ('Answer', 'local')])), \
              patch.object(autonomy, 'search', new=AsyncMock(return_value=results)) as search:
-            answer = await autonomy.run('Explain Saturn', [object()], 'key', True)
+            answer = await autonomy.run('Explain Saturn with current sources', [object()], 'key', True, depth='standard')
         self.assertIn('https://example.org/saturn', answer)
         search.assert_awaited_once_with('saturn rings', 'key')
+
+
+    async def test_deep_mode_adds_critique_and_revision(self):
+        plan = '{"actions":[]}'
+        cascade = AsyncMock(side_effect=[
+            (plan, 'planner'),
+            ('Draft', 'model-a'),
+            ('Fix unsupported claim', 'critic'),
+            ('Revised answer', 'model-b'),
+        ])
+        with patch.object(autonomy, 'cascade', new=cascade):
+            answer = await autonomy.run(
+                'Give a comprehensive analysis of this architecture',
+                [object()],
+                depth='deep',
+            )
+        self.assertIn('Revised answer', answer)
+        self.assertEqual(cascade.await_count, 4)
 
     async def test_default_answer_does_not_read_vault(self):
         with patch.object(orchestration, 'settings', replace(orchestration.settings, knowledge_enabled=False)), \
