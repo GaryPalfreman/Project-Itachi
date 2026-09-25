@@ -132,36 +132,51 @@ def wants_weather(prompt: str) -> bool:
     return any(word in text for word in ("weather", "forecast", "temperature outside", "temperature here"))
 
 
-async def weather_reply(prompt: str, timezone_name: str, locale: str = "") -> str | None:
+async def weather_reply(prompt: str, timezone_name: str, locale: str = "", latitude: float | None = None,
+                        longitude: float | None = None) -> str | None:
     if not wants_weather(prompt):
         return None
 
     location = _weather_location(prompt, normalize_timezone(timezone_name))
-    if not location:
+    inferred = place_from_timezone(normalize_timezone(timezone_name))
+    explicit_location = location != inferred
+    gps_available = (
+        isinstance(latitude, (int, float))
+        and isinstance(longitude, (int, float))
+        and not explicit_location
+    )
+    if not location and not gps_available:
         return (
             "I can read your browser timezone, but it does not provide a usable regional "
-            "location for weather. Ask with a city name, for example: weather in Melbourne."
+            "location for weather. Enable precise location or ask with a city name."
         )
 
     language = "en"
     if isinstance(locale, str) and len(locale) >= 2:
         language = locale[:2].lower()
 
+    first = {}
+    label = "your approved location"
     async with httpx.AsyncClient(timeout=12) as client:
-        geo = await client.get(
-            GEOCODING_URL,
-            params={"name": location, "count": 1, "language": language, "format": "json"},
-        )
-        geo.raise_for_status()
-        results = geo.json().get("results", [])
-        if not isinstance(results, list) or not results:
-            return f"I could not resolve **{location}** to a weather location."
+        if not gps_available:
+            geo = await client.get(
+                GEOCODING_URL,
+                params={"name": location, "count": 1, "language": language, "format": "json"},
+            )
+            geo.raise_for_status()
+            results = geo.json().get("results", [])
+            if not isinstance(results, list) or not results:
+                return f"I could not resolve **{location}** to a weather location."
 
-        first = results[0]
-        latitude = first.get("latitude")
-        longitude = first.get("longitude")
-        if not isinstance(latitude, (int, float)) or not isinstance(longitude, (int, float)):
-            return f"I could not resolve coordinates for **{location}**."
+            first = results[0]
+            latitude = first.get("latitude")
+            longitude = first.get("longitude")
+            if not isinstance(latitude, (int, float)) or not isinstance(longitude, (int, float)):
+                return f"I could not resolve coordinates for **{location}**."
+            name = str(first.get("name") or location)
+            admin = str(first.get("admin1") or "")
+            country = str(first.get("country") or "")
+            label = ", ".join(part for part in (name, admin, country) if part)
 
         forecast = await client.get(
             FORECAST_URL,
@@ -187,11 +202,6 @@ async def weather_reply(prompt: str, timezone_name: str, locale: str = "") -> st
     daily = payload.get("daily") or {}
     code = current.get("weather_code")
     condition = WEATHER_CODES.get(code, "current conditions unavailable")
-    name = str(first.get("name") or location)
-    admin = str(first.get("admin1") or "")
-    country = str(first.get("country") or "")
-    label = ", ".join(part for part in (name, admin, country) if part)
-
     try:
         temp = float(current.get("temperature_2m"))
         feels = float(current.get("apparent_temperature"))
@@ -211,11 +221,12 @@ async def weather_reply(prompt: str, timezone_name: str, locale: str = "") -> st
             today += f" with up to **{rain_probs[0]}%** precipitation probability"
         today += "."
 
-    regional_note = ""
-    explicit = _weather_location(prompt, normalize_timezone(timezone_name))
-    inferred = place_from_timezone(normalize_timezone(timezone_name))
-    if explicit == inferred and inferred:
+    if gps_available:
+        regional_note = " Location came from browser permission and remains session-only."
+    elif not explicit_location and inferred:
         regional_note = " Location was inferred from your browser timezone, not GPS."
+    else:
+        regional_note = ""
 
     return (
         f"Current weather for **{label}**: **{temp:.1f}°C**, {condition}; feels like "
