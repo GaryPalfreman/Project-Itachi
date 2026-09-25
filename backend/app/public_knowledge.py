@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import math
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -57,7 +58,25 @@ def _tokens(text: str) -> set[str]:
     return {match.group(0).casefold() for match in TOKEN.finditer(text)}
 
 
-def search(query: str, records: list[dict] | None = None, limit: int = 5) -> list[dict]:
+def _age_days(value: str) -> float | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return max(0.0, (datetime.now(timezone.utc) - parsed).total_seconds() / 86400.0)
+    except ValueError:
+        return None
+
+
+def search(
+    query: str,
+    records: list[dict] | None = None,
+    limit: int = 5,
+    *,
+    fresh: bool = False,
+) -> list[dict]:
     records = records if records is not None else load()
     q = _tokens(query)
     if not q:
@@ -72,6 +91,16 @@ def search(query: str, records: list[dict] | None = None, limit: int = 5) -> lis
             continue
         denominator = math.sqrt(max(1, len(body_tokens)))
         score = (title_hits * 3.0) + (body_hits / denominator)
+        if fresh:
+            age = _age_days(str(item.get("fetched_at") or ""))
+            if age is None:
+                score *= 0.05
+            elif age > 30:
+                continue
+            elif age > 7:
+                score *= 0.15
+            elif age > 2:
+                score *= 0.50
         ranked.append((score, item))
     ranked.sort(key=lambda pair: pair[0], reverse=True)
     return [item for _, item in ranked[: max(1, min(limit, 8))]]
