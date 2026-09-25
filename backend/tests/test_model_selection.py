@@ -53,4 +53,5 @@ class SelectionTests(unittest.IsolatedAsyncioTestCase):
             result = await public_reference.reply('Saturn', True)
         self.assertIn('https://en.wikipedia.org/wiki/Saturn', result)
         self.assertNotIn('<span>', result)
-        self.assertIn('no AI answer model connected', result)
+        self.assertIn('Public reference results:', result)
+        self.assertNotIn('AI answer model', result)
