@@ -85,30 +85,53 @@ header[data-testid="stHeader"] {display:none !important;}
 
 .st-key-itachi_transcript {
   position:fixed !important;
-  left:50% !important;
-  bottom:92px !important;
-  transform:translateX(-50%) !important;
-  width:min(920px,calc(100vw - 36px)) !important;
-  max-height:30vh !important;
+  top:22px !important;
+  right:22px !important;
+  bottom:94px !important;
+  left:auto !important;
+  transform:none !important;
+  width:clamp(360px,34vw,560px) !important;
+  max-height:none !important;
   overflow-y:auto !important;
   z-index:50 !important;
-  padding:10px 12px !important;
-  border:1px solid rgba(93,234,229,.10) !important;
-  border-radius:18px !important;
-  background:linear-gradient(180deg,rgba(3,10,15,.18),rgba(3,10,15,.74)) !important;
-  backdrop-filter:blur(12px) !important;
-  box-shadow:0 16px 50px rgba(0,0,0,.28),inset 0 0 24px rgba(57,211,210,.025) !important;
+  padding:14px 16px 18px !important;
+  border:1px solid rgba(93,234,229,.11) !important;
+  border-radius:22px !important;
+  background:
+    linear-gradient(180deg,rgba(4,13,19,.72),rgba(3,10,15,.82)) !important;
+  backdrop-filter:blur(16px) saturate(118%) !important;
+  box-shadow:
+    -18px 0 55px rgba(0,0,0,.18),
+    0 18px 55px rgba(0,0,0,.30),
+    inset 0 0 32px rgba(57,211,210,.025) !important;
+}
+.st-key-itachi_transcript::before {
+  content:"ITACHI // CONVERSATION";
+  display:block;
+  position:sticky;
+  top:-14px;
+  z-index:4;
+  margin:-14px -16px 10px;
+  padding:12px 16px 9px;
+  color:rgba(126,238,233,.62);
+  font-size:.58rem;
+  font-weight:750;
+  letter-spacing:.20em;
+  background:linear-gradient(180deg,rgba(4,13,19,.96),rgba(4,13,19,.76));
+  border-bottom:1px solid rgba(93,234,229,.065);
+  backdrop-filter:blur(14px);
 }
 .st-key-itachi_transcript::-webkit-scrollbar {width:5px;}
+.st-key-itachi_transcript::-webkit-scrollbar-track {background:transparent;}
 .st-key-itachi_transcript::-webkit-scrollbar-thumb {
   background:rgba(91,231,225,.18);
   border-radius:99px;
 }
 [data-testid="stChatMessage"] {
   border:0 !important;
-  border-bottom:1px solid rgba(105,230,226,.045) !important;
+  border-bottom:1px solid rgba(105,230,226,.05) !important;
   background:transparent !important;
-  padding:.45rem .25rem !important;
+  padding:.55rem .15rem !important;
 }
 [data-testid="stChatMessage"]:last-child {border-bottom:0 !important;}
 .itachi-response-label {
@@ -121,17 +144,19 @@ header[data-testid="stHeader"] {display:none !important;}
 }
 [data-testid="stChatInput"] {
   position:fixed !important;
-  left:50% !important;
-  bottom:20px !important;
-  transform:translateX(-50%) !important;
-  width:min(920px,calc(100vw - 36px)) !important;
+  right:22px !important;
+  bottom:22px !important;
+  left:auto !important;
+  transform:none !important;
+  width:clamp(360px,34vw,560px) !important;
   z-index:80 !important;
 }
 [data-testid="stChatInput"] > div {
-  border:1px solid rgba(91,233,228,.26) !important;
-  background:rgba(5,16,23,.78) !important;
-  backdrop-filter:blur(14px) !important;
-  box-shadow:0 0 28px rgba(60,221,219,.05) !important;
+  border:1px solid rgba(91,233,228,.28) !important;
+  border-radius:18px !important;
+  background:rgba(5,16,23,.86) !important;
+  backdrop-filter:blur(16px) saturate(120%) !important;
+  box-shadow:-14px 0 40px rgba(0,0,0,.14),0 0 28px rgba(60,221,219,.055) !important;
 }
 [data-testid="stChatInput"] textarea {
   color:#e5f4f5 !important;
@@ -140,15 +165,25 @@ header[data-testid="stHeader"] {display:none !important;}
   position:relative;
   z-index:90;
 }
-@media (max-width:700px) {
+@media (max-width:980px) {
   .st-key-itachi_transcript {
-    bottom:86px !important;
-    max-height:33vh !important;
-    width:calc(100vw - 22px) !important;
+    top:auto !important;
+    right:11px !important;
+    left:11px !important;
+    bottom:82px !important;
+    width:auto !important;
+    height:auto !important;
+    max-height:31vh !important;
+    border-radius:18px !important;
+  }
+  .st-key-itachi_transcript::before {
+    position:static;
   }
   [data-testid="stChatInput"] {
-    width:calc(100vw - 22px) !important;
-    bottom:14px !important;
+    right:11px !important;
+    left:11px !important;
+    bottom:12px !important;
+    width:auto !important;
   }
 }
 </style>''', unsafe_allow_html=True)
