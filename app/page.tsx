@@ -476,10 +476,12 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ passcode }),
+        credentials: "same-origin",
         signal: controller.signal,
       });
       if (!response.ok) throw new Error("access denied");
       setUnlocked(true);
+      setPasscode("");
       setStatusText("Cognitive engine online");
     } catch {
       setUnlockError("Access denied");
@@ -510,11 +512,11 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt,
-          passcode,
           depth: "auto",
           history: priorHistory,
           browser,
         }),
+        credentials: "same-origin",
         signal: controller.signal,
       });
       const payload = await response.json().catch(() => ({}));
