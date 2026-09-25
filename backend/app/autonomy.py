@@ -46,8 +46,11 @@ def depth_for(prompt: str, requested: str = 'auto') -> str:
     )
     if len(prompt) > 500 or any(marker in text for marker in deep_markers):
         return 'deep'
-    tool_markers = ('latest', 'current', 'today', 'calculate', 'github', 'source', 'verify', 'news')
-    if len(prompt) < 120 and not any(marker in text for marker in tool_markers):
+    standard_markers = (
+        'latest', 'current', 'today', 'calculate', 'github', 'source', 'verify', 'news',
+        'explain', 'example', 'examples', 'how does', 'how do', 'why does', 'why do'
+    )
+    if len(prompt) < 120 and not any(marker in text for marker in standard_markers):
         return 'quick'
     return 'standard'
 
