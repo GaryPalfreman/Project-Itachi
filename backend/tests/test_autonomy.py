@@ -36,6 +36,27 @@ class AutonomousTests(unittest.IsolatedAsyncioTestCase):
         allowed = autonomy.actions_from_plan(raw, True, allow_rapidapi=True)
         self.assertEqual([item['tool'] for item in allowed], ['rapid_finance', 'rapid_city'])
 
+    def test_deterministic_multi_question_specialist_routing(self):
+        prompt = (
+            'What is Microsoft trading at right now?\n'
+            'Give me structured information about Melbourne, Australia.\n'
+            'Define ephemeral and give me synonyms.\n'
+            'Find the latest news about NVIDIA Nemotron.'
+        )
+        actions = autonomy.deterministic_actions(
+            prompt,
+            allow_web=True,
+            allow_rapidapi=True,
+            limit=4,
+        )
+        self.assertEqual(
+            [item['tool'] for item in actions],
+            ['rapid_finance', 'rapid_city', 'rapid_word', 'web_search'],
+        )
+        self.assertEqual(actions[0]['input'], 'Microsoft')
+        self.assertEqual(actions[1]['input'], 'Melbourne, Australia')
+        self.assertEqual(actions[2]['input'], 'ephemeral')
+
     def test_plan_honors_deep_action_limit(self):
         raw = '{"actions":[' + ','.join(
             '{"tool":"calculate","input":"2+2"}' for _ in range(6)
@@ -56,6 +77,27 @@ class AutonomousTests(unittest.IsolatedAsyncioTestCase):
             reply = await autonomy.run('Get access now with a public account request', [object()], depth='standard')
         self.assertIn('Access requests pending review:', reply)
         self.assertIn('No login was created', reply)
+
+    async def test_standard_deterministic_route_skips_planner(self):
+        with patch.object(
+            autonomy,
+            'rapid_run_tool',
+            new=AsyncMock(return_value='price=500'),
+        ) as rapid, patch.object(
+            autonomy,
+            'cascade',
+            new=AsyncMock(return_value=('Answer', 'model')),
+        ) as cascade:
+            answer = await autonomy.run(
+                'What is Microsoft trading at right now?',
+                [object()],
+                allow_web=True,
+                depth='standard',
+                rapidapi_key='key',
+            )
+        self.assertIn('Answer', answer)
+        rapid.assert_awaited_once_with('rapid_finance', 'Microsoft', 'key')
+        self.assertEqual(cascade.await_count, 2)
 
     async def test_planner_can_use_rapidapi_specialist(self):
         plan = '{"actions":[{"tool":"rapid_finance","input":"Microsoft"}]}'
