@@ -1,15 +1,17 @@
 """Inspect a local safetensors header and adjacent model files without loading weights."""
 import argparse
+import hashlib
 import json
 import struct
 from pathlib import Path
 
 MAX_HEADER = 16 * 1024 * 1024
+NEMOTRON_EMBED_SHA256 = 'f959c3b04e66b42de280bfb97c140cb7e0bfe25e3ecb0b4464c68a8436b2d04f'
 REQUIRED_COMPANIONS = ('config.json', 'tokenizer.json', 'tokenizer_config.json',
                        'model.safetensors.index.json', 'adapter_config.json')
 
 
-def inspect(path: Path) -> dict:
+def inspect(path: Path, hash_weights: bool = False) -> dict:
     path = path.expanduser().resolve()
     if not path.is_file() or path.suffix != '.safetensors':
         raise ValueError('Pass an existing .safetensors file')
@@ -40,7 +42,7 @@ def inspect(path: Path) -> dict:
         if not isinstance(config, dict):
             raise ValueError('Invalid config.json structure')
     companions = {name: (path.parent / name).is_file() for name in REQUIRED_COMPANIONS}
-    return {
+    result = {
         'weights_bytes': path.stat().st_size,
         'tensor_count': len(keys),
         'model_type': str(config.get('model_type', 'unknown'))[:80],
@@ -53,14 +55,26 @@ def inspect(path: Path) -> dict:
                                     not adapter_file.is_file()),
         'note': 'Header and files only; identity, completeness, license and runtime support must still be verified.',
     }
+    if hash_weights:
+        digest = hashlib.sha256()
+        with path.open('rb') as handle:
+            for chunk in iter(lambda: handle.read(4 * 1024 * 1024), b''):
+                digest.update(chunk)
+        result['sha256'] = digest.hexdigest()
+        if result['sha256'] == NEMOTRON_EMBED_SHA256:
+            result['verified_match'] = 'nvidia/Nemotron-3-Embed-1B-BF16 (embedding model, not chat)'
+        else:
+            result['verified_match'] = None
+    return result
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('file', type=Path, help='The local model.safetensors path')
+    parser.add_argument('--sha256', action='store_true', help='Hash all weights to verify exact model identity')
     args = parser.parse_args()
     try:
-        print(json.dumps(inspect(args.file), indent=2))
+        print(json.dumps(inspect(args.file, hash_weights=args.sha256), indent=2))
     except ValueError as error:
         parser.error(str(error))
 
