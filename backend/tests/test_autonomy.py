@@ -57,6 +57,17 @@ class AutonomousTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(actions[1]['input'], 'Melbourne, Australia')
         self.assertEqual(actions[2]['input'], 'ephemeral')
 
+    def test_compound_finance_query_extracts_company(self):
+        prompt = 'What is Microsoft trading at right now, and what was its latest trading day?'
+        self.assertEqual(autonomy._clean_finance_query(prompt), 'Microsoft')
+        actions = autonomy.deterministic_actions(
+            prompt,
+            allow_web=True,
+            allow_rapidapi=True,
+            limit=4,
+        )
+        self.assertEqual(actions[0], {'tool':'rapid_finance', 'input':'Microsoft'})
+
     def test_plan_honors_deep_action_limit(self):
         raw = '{"actions":[' + ','.join(
             '{"tool":"calculate","input":"2+2"}' for _ in range(6)
@@ -98,6 +109,42 @@ class AutonomousTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('Answer', answer)
         rapid.assert_awaited_once_with('rapid_finance', 'Microsoft', 'key')
         self.assertEqual(cascade.await_count, 1)
+
+    async def test_verified_market_quote_bypasses_general_synthesis(self):
+        live = (
+            'Live market data for MSFT (Microsoft Corporation | United States | USD): '
+            'price=421.77, open=418.00, high=423.00, low=417.00, volume=123456, '
+            'latest_trading_day=2026-09-25, change=3.77 (0.90%).'
+        )
+        with patch.object(
+            autonomy,
+            'rapid_run_tool',
+            new=AsyncMock(return_value=live),
+        ), patch.object(
+            autonomy,
+            'search',
+            new=AsyncMock(return_value=[]),
+        ), patch.object(
+            autonomy,
+            'wikipedia',
+            new=AsyncMock(return_value=[]),
+        ), patch.object(
+            autonomy,
+            'cascade',
+            new=AsyncMock(side_effect=AssertionError('general synthesis should not run')),
+        ):
+            answer = await autonomy.run(
+                'What is Microsoft trading at right now, and what was its latest trading day?',
+                [object()],
+                web_key='key',
+                allow_web=True,
+                depth='standard',
+                rapidapi_key='rapid-key',
+            )
+        self.assertIn('Microsoft Corporation (MSFT)', answer)
+        self.assertIn('USD 421.77', answer)
+        self.assertIn('2026-09-25', answer)
+        self.assertNotIn("don't have access", answer.lower())
 
     async def test_deep_mode_keeps_planner_with_rapidapi_specialist(self):
         plan = '{"actions":[{"tool":"rapid_finance","input":"Microsoft"}]}'
