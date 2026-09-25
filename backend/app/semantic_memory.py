@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import math
+import time
 from typing import Iterable
 
 import httpx
@@ -75,6 +76,8 @@ class MemoryItem:
     text: str
     vector: list[float]
     role: str = "user"
+    created_at: float = field(default_factory=time.time)
+    volatile: bool = False
 
 
 @dataclass
@@ -84,8 +87,17 @@ class SessionSemanticMemory:
     items: list[MemoryItem] = field(default_factory=list)
     max_items: int = 80
 
-    def add(self, text: str, vector: list[float], role: str = "user") -> None:
-        self.items.append(MemoryItem(text=text, vector=vector, role=role))
+    def add(
+        self,
+        text: str,
+        vector: list[float],
+        role: str = "user",
+        *,
+        volatile: bool = False,
+    ) -> None:
+        self.items.append(
+            MemoryItem(text=text, vector=vector, role=role, volatile=volatile)
+        )
         if len(self.items) > self.max_items:
             del self.items[: len(self.items) - self.max_items]
 
@@ -95,10 +107,21 @@ class SessionSemanticMemory:
         *,
         limit: int = 4,
         min_similarity: float = 0.28,
+        fresh_query: bool = False,
+        volatile_max_age: float = 900.0,
     ) -> list[tuple[MemoryItem, float]]:
+        now = time.time()
+        eligible = [
+            item for item in self.items
+            if not item.volatile
+            or (
+                not fresh_query
+                and max(0.0, now - item.created_at) <= volatile_max_age
+            )
+        ]
         scored = [
             (item, cosine_similarity(query_vector, item.vector))
-            for item in self.items
+            for item in eligible
         ]
         scored = [entry for entry in scored if entry[1] >= min_similarity]
         scored.sort(key=lambda entry: entry[1], reverse=True)
