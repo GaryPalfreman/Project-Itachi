@@ -181,7 +181,17 @@ if prompt:
         else:
             try:
                 if autonomous:
-                    autonomous_prompt = prompt if recalled_context == '(none)' else (\n                    f"Relevant session memory:\\n{recalled_context}\\n\\nCurrent question: {prompt}"\n                )\n                reply = asyncio.run(autonomous_run(autonomous_prompt, ordered, setting('ITACHI_TAVILY_KEY'), use_web))
+                    autonomous_prompt = prompt if recalled_context == '(none)' else (
+                        f"Relevant session memory:\n{recalled_context}\n\nCurrent question: {prompt}"
+                    )
+                    reply = asyncio.run(
+                        autonomous_run(
+                            autonomous_prompt,
+                            ordered,
+                            setting('ITACHI_TAVILY_KEY'),
+                            use_web,
+                        )
+                    )
                     used = next((r.name for r in ordered if f'[Answered by {r.name}]' in reply), ordered[0].name)
                 else:
                     reply, used = asyncio.run(cascade(ordered, messages))
