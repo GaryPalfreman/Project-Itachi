@@ -2,6 +2,7 @@
 import re
 import httpx
 from .model_catalog import ModelRoute
+from .model_router import route_health
 
 HF_BASE = 'https://router.huggingface.co/v1'
 
@@ -41,8 +42,14 @@ def rank(routes: list[ModelRoute], prompt: str, feedback: dict | None = None,
         success = success if isinstance(success, (int, float)) else 0
         failure = failure if isinstance(failure, (int, float)) else 0
         denominator = success + failure + 2
-        reliability = (success + 1) / denominator if denominator > 0 else 0.5
-        return 2 * bool(match) + 4 * reliability
+        session_reliability = (success + 1) / denominator if denominator > 0 else 0.5
+        runtime = route_health(route.name)
+        runtime_reliability = float(runtime.get('reliability', 0.5))
+        latency_ms = float(runtime.get('latency_ema_ms', 0.0) or 0.0)
+        latency_penalty = min(1.25, latency_ms / 12000.0)
+        cooldown_penalty = 100.0 if not runtime.get('available', True) else 0.0
+        reliability = (session_reliability * 0.45) + (runtime_reliability * 0.55)
+        return 2 * bool(match) + 4 * reliability - latency_penalty - cooldown_penalty
     return sorted(routes, key=score, reverse=True)
 
 
