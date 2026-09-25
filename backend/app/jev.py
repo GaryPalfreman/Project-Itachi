@@ -7,8 +7,11 @@ Credentials are server-side only.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import time
 
 import httpx
+
+from .runtime_health import available, record_failure, record_success
 
 JEV_URL = "https://api.typesafe.ai/v1/systemone"
 JEV_MODEL = "jev-latest"
@@ -109,8 +112,17 @@ async def evaluate_prompt(
         "Content-Type": "application/json",
         "Accept": "application/json",
     }
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        response = await client.post(url, headers=headers, json=body)
-        response.raise_for_status()
-        payload = response.json()
-    return parse_decision(payload)
+    health_key = "external:decision-layer"
+    if not available(health_key):
+        raise RuntimeError("Decision layer is temporarily cooling down")
+    started = time.perf_counter()
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(url, headers=headers, json=body)
+            response.raise_for_status()
+            payload = response.json()
+        record_success(health_key, (time.perf_counter() - started) * 1000.0)
+        return parse_decision(payload)
+    except Exception as error:
+        record_failure(health_key, error)
+        raise
