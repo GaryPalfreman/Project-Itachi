@@ -39,6 +39,29 @@ class VercelAPITests(unittest.TestCase):
         self.assertIn("Secure", cookie)
         self.assertIn("SameSite=strict", cookie)
 
+    def test_single_vercel_api_entrypoint_restores_allowlisted_paths(self):
+        status = self.client.get(
+            "/api",
+            headers={"x-itachi-original-path": "/api/status"},
+        )
+        self.assertEqual(status.status_code, 200)
+        self.assertTrue(status.json()["accessRequired"])
+
+        unlocked = self.client.post(
+            "/api",
+            headers={"x-itachi-original-path": "/api/unlock"},
+            json={"passcode": "preview-passcode"},
+        )
+        self.assertEqual(unlocked.status_code, 200)
+        self.assertIn("itachi_preview_session", unlocked.headers.get("set-cookie", ""))
+
+    def test_single_vercel_api_entrypoint_rejects_unlisted_paths(self):
+        response = self.client.get(
+            "/api",
+            headers={"x-itachi-original-path": "/api/not-a-route"},
+        )
+        self.assertEqual(response.status_code, 404)
+
     def test_chat_requires_unlocked_session_not_replayed_passcode(self):
         client = TestClient(index.app, base_url="https://testserver")
         response = client.post("/api/chat", json={
