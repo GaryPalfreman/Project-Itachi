@@ -1,4 +1,5 @@
 """Bounded model failover for compatible chat-completion endpoints."""
+import logging
 import time
 import httpx
 
@@ -8,6 +9,7 @@ CONTEXT_MARKERS = ('context length', 'context window', 'maximum context',
                    'too many tokens', 'token limit', 'prompt is too long')
 ROUTE_MARKERS = ('model not found', 'unknown model', 'unsupported model',
                  'invalid model', 'does not exist', 'not available')
+logger = logging.getLogger(__name__)
 
 def may_fallback(error: Exception) -> bool:
     """Legacy two-route fallback: retry transient/quota/context failures, not auth failures."""
@@ -75,7 +77,7 @@ async def cascade(routes: list, messages: list[dict]) -> tuple[str, str]:
 
     last = None
     attempted = 0
-    for route in candidates:
+    for route_index, route in enumerate(candidates, start=1):
         attempted += 1
         health_key = f"model:{route.name}"
         started = time.perf_counter()
@@ -86,6 +88,15 @@ async def cascade(routes: list, messages: list[dict]) -> tuple[str, str]:
         except Exception as error:
             last = error
             record_failure(health_key, error)
+            status = getattr(getattr(error, 'response', None), 'status_code', None)
+            # Keep provider details, URLs, request text, response bodies, and credentials
+            # out of logs. The status and exception class are enough to diagnose routing.
+            logger.warning(
+                'chat_model_route_failed route_index=%d error_type=%s status_code=%s',
+                route_index,
+                type(error).__name__,
+                status if isinstance(status, int) else 'none',
+            )
             if not may_route_fallback(error):
                 break
 
