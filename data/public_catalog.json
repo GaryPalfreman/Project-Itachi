@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-26T14:30:42.353484+00:00",
+  "generated_at": "2026-09-26T18:37:24.391817+00:00",
   "origin": "Public GitHub metadata and attributed Wikipedia excerpts; untrusted until reviewed",
   "repositories": [
     {
@@ -7,7 +7,7 @@
       "url": "https://github.com/fastapi/fastapi",
       "description": "FastAPI framework, high performance, easy to learn, fast to code, ready for production",
       "license": "MIT",
-      "stars": 102629,
+      "stars": 102633,
       "updated": "2026-09-26T13:35:50Z"
     },
     {
@@ -15,15 +15,15 @@
       "url": "https://github.com/streamlit/streamlit",
       "description": "Streamlit — A faster way to build and share data apps.",
       "license": "Apache-2.0",
-      "stars": 45834,
-      "updated": "2026-09-26T14:10:11Z"
+      "stars": 45838,
+      "updated": "2026-09-26T16:08:45Z"
     },
     {
       "name": "ollama/ollama",
       "url": "https://github.com/ollama/ollama",
       "description": "Get up and running with Kimi, GLM, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
       "license": "MIT",
-      "stars": 181762,
+      "stars": 181767,
       "updated": "2026-09-26T14:29:55Z"
     },
     {
@@ -31,15 +31,15 @@
       "url": "https://github.com/huggingface/transformers",
       "description": "🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training. ",
       "license": "Apache-2.0",
-      "stars": 166674,
-      "updated": "2026-09-26T11:35:38Z"
+      "stars": 166692,
+      "updated": "2026-09-26T17:57:31Z"
     },
     {
       "name": "SYSTRAN/faster-whisper",
       "url": "https://github.com/SYSTRAN/faster-whisper",
       "description": "Faster Whisper transcription with CTranslate2",
       "license": "MIT",
-      "stars": 25584,
+      "stars": 25587,
       "updated": "2025-11-19T14:40:46Z"
     },
     {
@@ -47,7 +47,7 @@
       "url": "https://github.com/OHF-Voice/piper1-gpl",
       "description": "Fast and local neural text-to-speech engine",
       "license": "GPL-3.0",
-      "stars": 5688,
+      "stars": 5689,
       "updated": "2026-09-17T20:50:01Z"
     }
   ],
