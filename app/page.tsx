@@ -479,12 +479,23 @@ export default function Home() {
         credentials: "same-origin",
         signal: controller.signal,
       });
-      if (!response.ok) throw new Error("access denied");
+      if (response.status === 401) {
+        setUnlockError("Access denied");
+        return;
+      }
+      if (!response.ok) {
+        setUnlockError("Access service unavailable. Please try again shortly.");
+        return;
+      }
       setUnlocked(true);
       setPasscode("");
       setStatusText("Cognitive engine online");
-    } catch {
-      setUnlockError("Access denied");
+    } catch (error) {
+      setUnlockError(
+        error instanceof DOMException && error.name === "AbortError"
+          ? "Connection timed out. Please try again."
+          : "Could not contact the access service. Please try again.",
+      );
     } finally {
       window.clearTimeout(timeout);
     }
