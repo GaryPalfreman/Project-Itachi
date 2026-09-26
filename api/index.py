@@ -29,6 +29,27 @@ app = FastAPI(title="ITACHI", docs_url=None, redoc_url=None)
 LEARNED_KNOWLEDGE = load_learned_knowledge()
 SESSION_COOKIE = "itachi_preview_session"
 SESSION_MAX_AGE = 8 * 60 * 60
+VERCEL_BRIDGED_PATHS = {
+    "/api/status",
+    "/api/health",
+    "/api/unlock",
+    "/api/chat",
+}
+
+
+@app.middleware("http")
+async def _restore_vercel_api_path(request: Request, call_next):
+    """Restore API subpaths forwarded through the single /api Python function.
+
+    In this mixed Next.js/Python deployment, Vercel exposes ``api/index.py`` at
+    the exact ``/api`` path. The Next.js catch-all route forwards API requests
+    to that function and passes the original, allowlisted path in a header.
+    """
+    original_path = request.headers.get("x-itachi-original-path", "")
+    if request.url.path == "/api" and original_path in VERCEL_BRIDGED_PATHS:
+        request.scope["path"] = original_path
+        request.scope["raw_path"] = original_path.encode("ascii")
+    return await call_next(request)
 
 
 @app.exception_handler(Exception)
