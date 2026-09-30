@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-30T00:28:33.506434+00:00",
+  "generated_at": "2026-09-30T06:44:36.518804+00:00",
   "origin": "Public GitHub metadata and attributed Wikipedia excerpts; untrusted until reviewed",
   "repositories": [
     {
@@ -7,7 +7,7 @@
       "url": "https://github.com/fastapi/fastapi",
       "description": "FastAPI framework, high performance, easy to learn, fast to code, ready for production",
       "license": "MIT",
-      "stars": 102714,
+      "stars": 102717,
       "updated": "2026-09-29T22:36:03Z"
     },
     {
@@ -15,31 +15,31 @@
       "url": "https://github.com/streamlit/streamlit",
       "description": "Streamlit — A faster way to build and share data apps.",
       "license": "Apache-2.0",
-      "stars": 45856,
-      "updated": "2026-09-29T23:08:30Z"
+      "stars": 45858,
+      "updated": "2026-09-30T06:35:02Z"
     },
     {
       "name": "ollama/ollama",
       "url": "https://github.com/ollama/ollama",
       "description": "Get up and running with Kimi, GLM, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
       "license": "MIT",
-      "stars": 181930,
-      "updated": "2026-09-29T20:37:27Z"
+      "stars": 181939,
+      "updated": "2026-09-30T02:33:25Z"
     },
     {
       "name": "huggingface/transformers",
       "url": "https://github.com/huggingface/transformers",
       "description": "🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training. ",
       "license": "Apache-2.0",
-      "stars": 166827,
-      "updated": "2026-09-29T23:11:39Z"
+      "stars": 166836,
+      "updated": "2026-09-30T06:25:40Z"
     },
     {
       "name": "SYSTRAN/faster-whisper",
       "url": "https://github.com/SYSTRAN/faster-whisper",
       "description": "Faster Whisper transcription with CTranslate2",
       "license": "MIT",
-      "stars": 25629,
+      "stars": 25631,
       "updated": "2025-11-19T14:40:46Z"
     },
     {
@@ -47,7 +47,7 @@
       "url": "https://github.com/OHF-Voice/piper1-gpl",
       "description": "Fast and local neural text-to-speech engine",
       "license": "GPL-3.0",
-      "stars": 5716,
+      "stars": 5718,
       "updated": "2026-09-28T20:17:35Z"
     }
   ],
@@ -60,9 +60,9 @@
       "topic": "artificial intelligence"
     },
     {
-      "title": "Artificial general intelligence",
-      "url": "https://en.wikipedia.org/wiki/Artificial_general_intelligence",
-      "excerpt": "Artificial general intelligence (AGI) is a hypothetical type of artificial intelligence that matches or surpasses human capabilities across virtually all cognitive tasks. Unlike artificial narrow intelligence (ANI), whose competence is confined to we",
+      "title": "A.I. Artificial Intelligence",
+      "url": "https://en.wikipedia.org/wiki/A.I._Artificial_Intelligence",
+      "excerpt": "A.I. Artificial Intelligence (or simply A.I.) is a 2001 American science fiction drama film written and directed by Steven Spielberg. The screenplay by Spielberg is based on a screen story by Ian Watson adapting the 1969 short story \"Supertoys Last A",
       "license": "CC BY-SA (Wikipedia excerpt)",
       "topic": "artificial intelligence"
     },
