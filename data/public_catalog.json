@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-07T01:33:23.353341+00:00",
+  "generated_at": "2026-10-07T08:40:48.251369+00:00",
   "origin": "Public GitHub metadata and attributed Wikipedia excerpts; untrusted until reviewed",
   "repositories": [
     {
@@ -7,8 +7,8 @@
       "url": "https://github.com/fastapi/fastapi",
       "description": "FastAPI framework, high performance, easy to learn, fast to code, ready for production",
       "license": "MIT",
-      "stars": 102845,
-      "updated": "2026-10-06T17:31:16Z"
+      "stars": 102852,
+      "updated": "2026-10-07T07:50:59Z"
     },
     {
       "name": "streamlit/streamlit",
@@ -16,30 +16,30 @@
       "description": "Streamlit — A faster way to build and share data apps.",
       "license": "Apache-2.0",
       "stars": 45908,
-      "updated": "2026-10-06T23:31:42Z"
+      "updated": "2026-10-07T07:58:02Z"
     },
     {
       "name": "ollama/ollama",
       "url": "https://github.com/ollama/ollama",
       "description": "Get up and running with Kimi, GLM, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
       "license": "MIT",
-      "stars": 182401,
-      "updated": "2026-10-07T01:31:56Z"
+      "stars": 182432,
+      "updated": "2026-10-07T04:39:34Z"
     },
     {
       "name": "huggingface/transformers",
       "url": "https://github.com/huggingface/transformers",
       "description": "🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training. ",
       "license": "Apache-2.0",
-      "stars": 167002,
-      "updated": "2026-10-07T00:50:51Z"
+      "stars": 167014,
+      "updated": "2026-10-07T07:17:08Z"
     },
     {
       "name": "SYSTRAN/faster-whisper",
       "url": "https://github.com/SYSTRAN/faster-whisper",
       "description": "Faster Whisper transcription with CTranslate2",
       "license": "MIT",
-      "stars": 25732,
+      "stars": 25735,
       "updated": "2026-10-06T20:10:47Z"
     },
     {
@@ -47,7 +47,7 @@
       "url": "https://github.com/OHF-Voice/piper1-gpl",
       "description": "Fast and local neural text-to-speech engine",
       "license": "GPL-3.0",
-      "stars": 5780,
+      "stars": 5784,
       "updated": "2026-10-06T21:23:53Z"
     }
   ],
