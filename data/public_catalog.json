@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-08T22:05:05.536575+00:00",
+  "generated_at": "2026-10-09T02:11:13.632726+00:00",
   "origin": "Public GitHub metadata and attributed Wikipedia excerpts; untrusted until reviewed",
   "repositories": [
     {
@@ -16,30 +16,30 @@
       "description": "Streamlit — A faster way to build and share data apps.",
       "license": "Apache-2.0",
       "stars": 45922,
-      "updated": "2026-10-08T21:59:46Z"
+      "updated": "2026-10-09T02:04:47Z"
     },
     {
       "name": "ollama/ollama",
       "url": "https://github.com/ollama/ollama",
       "description": "Get up and running with Kimi, GLM, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
       "license": "MIT",
-      "stars": 182411,
-      "updated": "2026-10-08T20:18:39Z"
+      "stars": 182424,
+      "updated": "2026-10-08T23:13:17Z"
     },
     {
       "name": "huggingface/transformers",
       "url": "https://github.com/huggingface/transformers",
       "description": "🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training. ",
       "license": "Apache-2.0",
-      "stars": 166862,
-      "updated": "2026-10-08T22:00:30Z"
+      "stars": 166861,
+      "updated": "2026-10-09T01:41:06Z"
     },
     {
       "name": "SYSTRAN/faster-whisper",
       "url": "https://github.com/SYSTRAN/faster-whisper",
       "description": "Faster Whisper transcription with CTranslate2",
       "license": "MIT",
-      "stars": 25762,
+      "stars": 25764,
       "updated": "2026-10-06T20:10:47Z"
     },
     {
