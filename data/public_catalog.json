@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-10T13:44:00.679435+00:00",
+  "generated_at": "2026-10-10T18:37:15.324077+00:00",
   "origin": "Public GitHub metadata and attributed Wikipedia excerpts; untrusted until reviewed",
   "repositories": [
     {
@@ -7,7 +7,7 @@
       "url": "https://github.com/fastapi/fastapi",
       "description": "FastAPI framework, high performance, easy to learn, fast to code, ready for production",
       "license": "MIT",
-      "stars": 102963,
+      "stars": 102970,
       "updated": "2026-10-08T12:29:28Z"
     },
     {
@@ -23,7 +23,7 @@
       "url": "https://github.com/ollama/ollama",
       "description": "Get up and running with Kimi, GLM, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
       "license": "MIT",
-      "stars": 182604,
+      "stars": 182629,
       "updated": "2026-10-10T07:31:41Z"
     },
     {
@@ -31,15 +31,15 @@
       "url": "https://github.com/huggingface/transformers",
       "description": "🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training. ",
       "license": "Apache-2.0",
-      "stars": 167024,
-      "updated": "2026-10-10T02:22:38Z"
+      "stars": 167133,
+      "updated": "2026-10-10T17:50:34Z"
     },
     {
       "name": "SYSTRAN/faster-whisper",
       "url": "https://github.com/SYSTRAN/faster-whisper",
       "description": "Faster Whisper transcription with CTranslate2",
       "license": "MIT",
-      "stars": 25795,
+      "stars": 25802,
       "updated": "2026-10-10T03:39:43Z"
     },
     {
@@ -47,7 +47,7 @@
       "url": "https://github.com/OHF-Voice/piper1-gpl",
       "description": "Fast and local neural text-to-speech engine",
       "license": "GPL-3.0",
-      "stars": 5814,
+      "stars": 5819,
       "updated": "2026-10-06T21:23:53Z"
     }
   ],
