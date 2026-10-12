@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-11T20:18:26.950844+00:00",
+  "generated_at": "2026-10-12T00:33:39.920265+00:00",
   "origin": "Public GitHub metadata and attributed Wikipedia excerpts; untrusted until reviewed",
   "repositories": [
     {
@@ -7,7 +7,7 @@
       "url": "https://github.com/fastapi/fastapi",
       "description": "FastAPI framework, high performance, easy to learn, fast to code, ready for production",
       "license": "MIT",
-      "stars": 103017,
+      "stars": 103020,
       "updated": "2026-10-08T12:29:28Z"
     },
     {
@@ -15,31 +15,31 @@
       "url": "https://github.com/streamlit/streamlit",
       "description": "Streamlit — A faster way to build and share data apps.",
       "license": "Apache-2.0",
-      "stars": 45944,
-      "updated": "2026-10-11T08:13:05Z"
+      "stars": 45948,
+      "updated": "2026-10-11T23:43:56Z"
     },
     {
       "name": "ollama/ollama",
       "url": "https://github.com/ollama/ollama",
       "description": "Get up and running with Kimi, GLM, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
       "license": "MIT",
-      "stars": 182770,
-      "updated": "2026-10-11T18:09:43Z"
+      "stars": 182783,
+      "updated": "2026-10-11T20:29:40Z"
     },
     {
       "name": "huggingface/transformers",
       "url": "https://github.com/huggingface/transformers",
       "description": "🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training. ",
       "license": "Apache-2.0",
-      "stars": 167514,
-      "updated": "2026-10-11T20:06:55Z"
+      "stars": 167525,
+      "updated": "2026-10-11T23:49:39Z"
     },
     {
       "name": "SYSTRAN/faster-whisper",
       "url": "https://github.com/SYSTRAN/faster-whisper",
       "description": "Faster Whisper transcription with CTranslate2",
       "license": "MIT",
-      "stars": 25809,
+      "stars": 25810,
       "updated": "2026-10-10T03:39:43Z"
     },
     {
@@ -47,7 +47,7 @@
       "url": "https://github.com/OHF-Voice/piper1-gpl",
       "description": "Fast and local neural text-to-speech engine",
       "license": "GPL-3.0",
-      "stars": 5826,
+      "stars": 5828,
       "updated": "2026-10-11T01:59:28Z"
     }
   ],
@@ -74,9 +74,9 @@
       "topic": "software engineering"
     },
     {
-      "title": "Cleanroom software engineering",
-      "url": "https://en.wikipedia.org/wiki/Cleanroom_software_engineering",
-      "excerpt": "The cleanroom software engineering  process is a software development process intended to produce software with a certifiable level of reliability. The central principles are software development based on formal methods, incremental implementation un",
+      "title": "History of software engineering",
+      "url": "https://en.wikipedia.org/wiki/History_of_software_engineering",
+      "excerpt": "The history of software engineering begins around the 1960s. Writing software has evolved into a profession concerned with how best to maximize the quality of software and of how to create it. Quality can refer to how maintainable software is, to its",
       "license": "CC BY-SA (Wikipedia excerpt)",
       "topic": "software engineering"
     },
