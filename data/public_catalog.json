@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-15T15:02:18.702829+00:00",
+  "generated_at": "2026-10-15T19:09:37.239895+00:00",
   "origin": "Public GitHub metadata and attributed Wikipedia excerpts; untrusted until reviewed",
   "repositories": [
     {
@@ -7,7 +7,7 @@
       "url": "https://github.com/fastapi/fastapi",
       "description": "FastAPI framework, high performance, easy to learn, fast to code, ready for production",
       "license": "MIT",
-      "stars": 103109,
+      "stars": 103113,
       "updated": "2026-10-15T14:24:58Z"
     },
     {
@@ -16,30 +16,30 @@
       "description": "Streamlit — A faster way to build and share data apps.",
       "license": "Apache-2.0",
       "stars": 45998,
-      "updated": "2026-10-15T15:02:10Z"
+      "updated": "2026-10-15T19:07:29Z"
     },
     {
       "name": "ollama/ollama",
       "url": "https://github.com/ollama/ollama",
       "description": "Get up and running with Kimi, GLM, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
       "license": "MIT",
-      "stars": 183250,
-      "updated": "2026-10-15T14:29:31Z"
+      "stars": 183287,
+      "updated": "2026-10-15T18:07:05Z"
     },
     {
       "name": "huggingface/transformers",
       "url": "https://github.com/huggingface/transformers",
       "description": "🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training. ",
       "license": "Apache-2.0",
-      "stars": 167714,
-      "updated": "2026-10-15T15:00:13Z"
+      "stars": 167719,
+      "updated": "2026-10-15T18:50:12Z"
     },
     {
       "name": "SYSTRAN/faster-whisper",
       "url": "https://github.com/SYSTRAN/faster-whisper",
       "description": "Faster Whisper transcription with CTranslate2",
       "license": "MIT",
-      "stars": 25871,
+      "stars": 25876,
       "updated": "2026-10-13T07:02:49Z"
     },
     {
@@ -47,7 +47,7 @@
       "url": "https://github.com/OHF-Voice/piper1-gpl",
       "description": "Fast and local neural text-to-speech engine",
       "license": "GPL-3.0",
-      "stars": 5883,
+      "stars": 5884,
       "updated": "2026-10-15T11:59:19Z"
     }
   ],
@@ -74,9 +74,9 @@
       "topic": "software engineering"
     },
     {
-      "title": "Cleanroom software engineering",
-      "url": "https://en.wikipedia.org/wiki/Cleanroom_software_engineering",
-      "excerpt": "The cleanroom software engineering  process is a software development process intended to produce software with a certifiable level of reliability. The central principles are software development based on formal methods, incremental implementation un",
+      "title": "Social software engineering",
+      "url": "https://en.wikipedia.org/wiki/Social_software_engineering",
+      "excerpt": "Social software engineering (SSE) is a branch of software engineering that is concerned with the social aspects of software development and the developed software.\nSSE focuses on the socialness of both software engineering and developed software. On ",
       "license": "CC BY-SA (Wikipedia excerpt)",
       "topic": "software engineering"
     },
@@ -88,9 +88,9 @@
       "topic": "mechanical engineering"
     },
     {
-      "title": "List of Historic Mechanical Engineering Landmarks",
-      "url": "https://en.wikipedia.org/wiki/List_of_Historic_Mechanical_Engineering_Landmarks",
-      "excerpt": "The following is a list of Historic Mechanical Engineering Landmarks as designated by the American Society of Mechanical Engineers (ASME) since it began the program in 1971. The designation is granted to existing artifacts or systems representing sig",
+      "title": "Glossary of mechanical engineering",
+      "url": "https://en.wikipedia.org/wiki/Glossary_of_mechanical_engineering",
+      "excerpt": "Most of the terms listed in Wikipedia glossaries are already defined and explained within Wikipedia itself.  However, glossaries like this one are useful for looking up, comparing and reviewing large numbers of terms together.  You can help enhance t",
       "license": "CC BY-SA (Wikipedia excerpt)",
       "topic": "mechanical engineering"
     }
