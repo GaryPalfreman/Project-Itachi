@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-18T05:55:26.024997+00:00",
+  "generated_at": "2026-10-18T11:07:45.177352+00:00",
   "origin": "Public GitHub metadata and attributed Wikipedia excerpts; untrusted until reviewed",
   "repositories": [
     {
@@ -7,8 +7,8 @@
       "url": "https://github.com/fastapi/fastapi",
       "description": "FastAPI framework, high performance, easy to learn, fast to code, ready for production",
       "license": "MIT",
-      "stars": 103186,
-      "updated": "2026-10-17T18:19:21Z"
+      "stars": 103206,
+      "updated": "2026-10-18T09:12:23Z"
     },
     {
       "name": "streamlit/streamlit",
@@ -16,22 +16,22 @@
       "description": "Streamlit — A faster way to build and share data apps.",
       "license": "Apache-2.0",
       "stars": 46031,
-      "updated": "2026-10-18T04:38:44Z"
+      "updated": "2026-10-18T10:30:08Z"
     },
     {
       "name": "ollama/ollama",
       "url": "https://github.com/ollama/ollama",
       "description": "Get up and running with Kimi, GLM, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
       "license": "MIT",
-      "stars": 183666,
-      "updated": "2026-10-18T02:07:15Z"
+      "stars": 183689,
+      "updated": "2026-10-18T06:06:02Z"
     },
     {
       "name": "huggingface/transformers",
       "url": "https://github.com/huggingface/transformers",
       "description": "🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training. ",
       "license": "Apache-2.0",
-      "stars": 167801,
+      "stars": 167809,
       "updated": "2026-10-18T04:14:43Z"
     },
     {
