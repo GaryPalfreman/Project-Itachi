@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-18T14:35:28.123794+00:00",
+  "generated_at": "2026-10-18T18:06:57.341939+00:00",
   "origin": "Public GitHub metadata and attributed Wikipedia excerpts; untrusted until reviewed",
   "repositories": [
     {
@@ -7,8 +7,8 @@
       "url": "https://github.com/fastapi/fastapi",
       "description": "FastAPI framework, high performance, easy to learn, fast to code, ready for production",
       "license": "MIT",
-      "stars": 103205,
-      "updated": "2026-10-18T14:31:29Z"
+      "stars": 103216,
+      "updated": "2026-10-18T15:18:08Z"
     },
     {
       "name": "streamlit/streamlit",
@@ -23,7 +23,7 @@
       "url": "https://github.com/ollama/ollama",
       "description": "Get up and running with Kimi, GLM, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
       "license": "MIT",
-      "stars": 183709,
+      "stars": 183721,
       "updated": "2026-10-18T06:06:02Z"
     },
     {
@@ -31,7 +31,7 @@
       "url": "https://github.com/huggingface/transformers",
       "description": "🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training. ",
       "license": "Apache-2.0",
-      "stars": 167814,
+      "stars": 167815,
       "updated": "2026-10-18T04:14:43Z"
     },
     {
@@ -39,7 +39,7 @@
       "url": "https://github.com/SYSTRAN/faster-whisper",
       "description": "Faster Whisper transcription with CTranslate2",
       "license": "MIT",
-      "stars": 25934,
+      "stars": 25940,
       "updated": "2026-10-16T11:12:55Z"
     },
     {
@@ -74,9 +74,9 @@
       "topic": "software engineering"
     },
     {
-      "title": "Cleanroom software engineering",
-      "url": "https://en.wikipedia.org/wiki/Cleanroom_software_engineering",
-      "excerpt": "The cleanroom software engineering  process is a software development process intended to produce software with a certifiable level of reliability. The central principles are software development based on formal methods, incremental implementation un",
+      "title": "History of software engineering",
+      "url": "https://en.wikipedia.org/wiki/History_of_software_engineering",
+      "excerpt": "The history of software engineering begins around the 1960s. Writing software has evolved into a profession concerned with how best to maximize the quality of software and of how to create it. Quality can refer to how maintainable software is, to its",
       "license": "CC BY-SA (Wikipedia excerpt)",
       "topic": "software engineering"
     },
