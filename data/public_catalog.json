@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-20T20:36:24.168882+00:00",
+  "generated_at": "2026-10-20T23:54:04.612529+00:00",
   "origin": "Public GitHub metadata and attributed Wikipedia excerpts; untrusted until reviewed",
   "repositories": [
     {
@@ -7,39 +7,39 @@
       "url": "https://github.com/fastapi/fastapi",
       "description": "FastAPI framework, high performance, easy to learn, fast to code, ready for production",
       "license": "MIT",
-      "stars": 103283,
-      "updated": "2026-10-20T20:11:43Z"
+      "stars": 103292,
+      "updated": "2026-10-20T23:00:11Z"
     },
     {
       "name": "streamlit/streamlit",
       "url": "https://github.com/streamlit/streamlit",
       "description": "Streamlit — A faster way to build and share data apps.",
       "license": "Apache-2.0",
-      "stars": 46060,
-      "updated": "2026-10-20T20:21:42Z"
+      "stars": 46068,
+      "updated": "2026-10-20T23:41:30Z"
     },
     {
       "name": "ollama/ollama",
       "url": "https://github.com/ollama/ollama",
       "description": "Get up and running with Kimi, GLM, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
       "license": "MIT",
-      "stars": 184058,
-      "updated": "2026-10-20T19:19:18Z"
+      "stars": 184069,
+      "updated": "2026-10-20T22:09:49Z"
     },
     {
       "name": "huggingface/transformers",
       "url": "https://github.com/huggingface/transformers",
       "description": "🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training. ",
       "license": "Apache-2.0",
-      "stars": 167913,
-      "updated": "2026-10-20T20:03:35Z"
+      "stars": 167922,
+      "updated": "2026-10-20T23:02:59Z"
     },
     {
       "name": "SYSTRAN/faster-whisper",
       "url": "https://github.com/SYSTRAN/faster-whisper",
       "description": "Faster Whisper transcription with CTranslate2",
       "license": "MIT",
-      "stars": 25994,
+      "stars": 25996,
       "updated": "2026-10-16T11:12:55Z"
     },
     {
@@ -88,9 +88,9 @@
       "topic": "mechanical engineering"
     },
     {
-      "title": "List of Historic Mechanical Engineering Landmarks",
-      "url": "https://en.wikipedia.org/wiki/List_of_Historic_Mechanical_Engineering_Landmarks",
-      "excerpt": "The following is a list of Historic Mechanical Engineering Landmarks as designated by the American Society of Mechanical Engineers (ASME) since it began the program in 1971. The designation is granted to existing artifacts or systems representing sig",
+      "title": "Glossary of mechanical engineering",
+      "url": "https://en.wikipedia.org/wiki/Glossary_of_mechanical_engineering",
+      "excerpt": "Most of the terms listed in Wikipedia glossaries are already defined and explained within Wikipedia itself.  However, glossaries like this one are useful for looking up, comparing and reviewing large numbers of terms together.  You can help enhance t",
       "license": "CC BY-SA (Wikipedia excerpt)",
       "topic": "mechanical engineering"
     }
