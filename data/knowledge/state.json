@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-10-22T15:18:42.747256+00:00",
-  "record_count": 134,
+  "generated_at": "2026-10-22T20:08:03.855937+00:00",
+  "record_count": 138,
   "fresh_counts": {
     "wikipedia": 14,
-    "github": 14,
+    "github": 16,
     "feeds": 10
   },
   "policy": "Public sources only; short excerpts; downloaded code is never executed."
