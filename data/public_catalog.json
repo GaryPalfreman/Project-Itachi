@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-24T11:02:47.718808+00:00",
+  "generated_at": "2026-10-24T14:34:12.212673+00:00",
   "origin": "Public GitHub metadata and attributed Wikipedia excerpts; untrusted until reviewed",
   "repositories": [
     {
@@ -7,7 +7,7 @@
       "url": "https://github.com/fastapi/fastapi",
       "description": "FastAPI framework, high performance, easy to learn, fast to code, ready for production",
       "license": "MIT",
-      "stars": 104067,
+      "stars": 104074,
       "updated": "2026-10-23T23:46:14Z"
     },
     {
@@ -15,7 +15,7 @@
       "url": "https://github.com/streamlit/streamlit",
       "description": "Streamlit — A faster way to build and share data apps.",
       "license": "Apache-2.0",
-      "stars": 46089,
+      "stars": 46090,
       "updated": "2026-10-24T10:07:09Z"
     },
     {
@@ -23,7 +23,7 @@
       "url": "https://github.com/ollama/ollama",
       "description": "Get up and running with Kimi, GLM, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
       "license": "MIT",
-      "stars": 184594,
+      "stars": 184617,
       "updated": "2026-10-23T23:17:57Z"
     },
     {
@@ -31,7 +31,7 @@
       "url": "https://github.com/huggingface/transformers",
       "description": "🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training. ",
       "license": "Apache-2.0",
-      "stars": 168059,
+      "stars": 168068,
       "updated": "2026-10-24T09:24:46Z"
     },
     {
@@ -39,7 +39,7 @@
       "url": "https://github.com/SYSTRAN/faster-whisper",
       "description": "Faster Whisper transcription with CTranslate2",
       "license": "MIT",
-      "stars": 26093,
+      "stars": 26098,
       "updated": "2026-10-23T19:31:56Z"
     },
     {
@@ -47,7 +47,7 @@
       "url": "https://github.com/OHF-Voice/piper1-gpl",
       "description": "Fast and local neural text-to-speech engine",
       "license": "GPL-3.0",
-      "stars": 5983,
+      "stars": 5984,
       "updated": "2026-10-23T23:45:30Z"
     }
   ],
