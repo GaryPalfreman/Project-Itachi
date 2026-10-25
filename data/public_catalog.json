@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-24T23:16:29.021915+00:00",
+  "generated_at": "2026-10-25T01:17:01.077066+00:00",
   "origin": "Public GitHub metadata and attributed Wikipedia excerpts; untrusted until reviewed",
   "repositories": [
     {
@@ -7,7 +7,7 @@
       "url": "https://github.com/fastapi/fastapi",
       "description": "FastAPI framework, high performance, easy to learn, fast to code, ready for production",
       "license": "MIT",
-      "stars": 104096,
+      "stars": 104099,
       "updated": "2026-10-23T23:46:14Z"
     },
     {
@@ -15,7 +15,7 @@
       "url": "https://github.com/streamlit/streamlit",
       "description": "Streamlit — A faster way to build and share data apps.",
       "license": "Apache-2.0",
-      "stars": 46100,
+      "stars": 46101,
       "updated": "2026-10-24T10:07:09Z"
     },
     {
@@ -23,7 +23,7 @@
       "url": "https://github.com/ollama/ollama",
       "description": "Get up and running with Kimi, GLM, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
       "license": "MIT",
-      "stars": 184655,
+      "stars": 184663,
       "updated": "2026-10-24T18:03:30Z"
     },
     {
@@ -31,8 +31,8 @@
       "url": "https://github.com/huggingface/transformers",
       "description": "🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training. ",
       "license": "Apache-2.0",
-      "stars": 168096,
-      "updated": "2026-10-24T23:13:19Z"
+      "stars": 168102,
+      "updated": "2026-10-25T00:19:11Z"
     },
     {
       "name": "SYSTRAN/faster-whisper",
@@ -48,7 +48,7 @@
       "description": "Fast and local neural text-to-speech engine",
       "license": "GPL-3.0",
       "stars": 5993,
-      "updated": "2026-10-23T23:45:30Z"
+      "updated": "2026-10-25T01:02:19Z"
     }
   ],
   "references": [
@@ -74,9 +74,9 @@
       "topic": "software engineering"
     },
     {
-      "title": "Reverse engineering",
-      "url": "https://en.wikipedia.org/wiki/Reverse_engineering",
-      "excerpt": "Reverse engineering (also known as backwards engineering or back engineering) is a process or method through which one attempts to understand through deductive reasoning how a previously made device, process, system, or piece of software accomplishes",
+      "title": "Empirical software engineering",
+      "url": "https://en.wikipedia.org/wiki/Empirical_software_engineering",
+      "excerpt": "Empirical software engineering (ESE) (also known as Evidence-based software engineering) is a subfield of software engineering (SE) research that uses empirical research methods to study and evaluate SE techniques. These techniques include: software ",
       "license": "CC BY-SA (Wikipedia excerpt)",
       "topic": "software engineering"
     },
