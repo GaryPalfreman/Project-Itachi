@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-31T17:44:45.028470+00:00",
+  "generated_at": "2026-10-31T21:37:01.267280+00:00",
   "origin": "Public GitHub metadata and attributed Wikipedia excerpts; untrusted until reviewed",
   "repositories": [
     {
@@ -7,23 +7,23 @@
       "url": "https://github.com/fastapi/fastapi",
       "description": "FastAPI framework, high performance, easy to learn, fast to code, ready for production",
       "license": "MIT",
-      "stars": 104384,
-      "updated": "2026-10-31T11:17:34Z"
+      "stars": 104387,
+      "updated": "2026-10-31T19:05:17Z"
     },
     {
       "name": "streamlit/streamlit",
       "url": "https://github.com/streamlit/streamlit",
       "description": "Streamlit — A faster way to build and share data apps.",
       "license": "Apache-2.0",
-      "stars": 46176,
-      "updated": "2026-10-31T17:29:52Z"
+      "stars": 46183,
+      "updated": "2026-10-31T21:31:18Z"
     },
     {
       "name": "ollama/ollama",
       "url": "https://github.com/ollama/ollama",
       "description": "Get up and running with Kimi, GLM, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
       "license": "MIT",
-      "stars": 185461,
+      "stars": 185474,
       "updated": "2026-10-30T21:34:59Z"
     },
     {
@@ -31,23 +31,23 @@
       "url": "https://github.com/huggingface/transformers",
       "description": "🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training. ",
       "license": "Apache-2.0",
-      "stars": 168389,
-      "updated": "2026-10-31T13:34:03Z"
+      "stars": 168397,
+      "updated": "2026-10-31T21:31:04Z"
     },
     {
       "name": "SYSTRAN/faster-whisper",
       "url": "https://github.com/SYSTRAN/faster-whisper",
       "description": "Faster Whisper transcription with CTranslate2",
       "license": "MIT",
-      "stars": 26352,
-      "updated": "2026-10-30T23:06:18Z"
+      "stars": 26354,
+      "updated": "2026-10-31T18:02:17Z"
     },
     {
       "name": "OHF-Voice/piper1-gpl",
       "url": "https://github.com/OHF-Voice/piper1-gpl",
       "description": "Fast and local neural text-to-speech engine",
       "license": "GPL-3.0",
-      "stars": 6102,
+      "stars": 6107,
       "updated": "2026-10-30T17:29:33Z"
     }
   ],
@@ -88,9 +88,9 @@
       "topic": "mechanical engineering"
     },
     {
-      "title": "Glossary of mechanical engineering",
-      "url": "https://en.wikipedia.org/wiki/Glossary_of_mechanical_engineering",
-      "excerpt": "Most of the terms listed in Wikipedia glossaries are already defined and explained within Wikipedia itself.  However, glossaries like this one are useful for looking up, comparing and reviewing large numbers of terms together.  You can help enhance t",
+      "title": "American Society of Mechanical Engineers",
+      "url": "https://en.wikipedia.org/wiki/American_Society_of_Mechanical_Engineers",
+      "excerpt": "The American Society of Mechanical Engineers (ASME) is an American  professional association that, in its own words, \"promotes the art, science, and practice of multidisciplinary engineering and allied sciences around the globe\" via \"continuing educa",
       "license": "CC BY-SA (Wikipedia excerpt)",
       "topic": "mechanical engineering"
     }
