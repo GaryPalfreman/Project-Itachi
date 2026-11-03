@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-02T23:31:51.922410+00:00",
+  "generated_at": "2026-11-03T06:49:33.749704+00:00",
   "origin": "Public GitHub metadata and attributed Wikipedia excerpts; untrusted until reviewed",
   "repositories": [
     {
@@ -7,7 +7,7 @@
       "url": "https://github.com/fastapi/fastapi",
       "description": "FastAPI framework, high performance, easy to learn, fast to code, ready for production",
       "license": "MIT",
-      "stars": 104360,
+      "stars": 104363,
       "updated": "2026-11-02T14:05:20Z"
     },
     {
@@ -16,30 +16,30 @@
       "description": "Streamlit — A faster way to build and share data apps.",
       "license": "Apache-2.0",
       "stars": 46221,
-      "updated": "2026-11-02T23:31:46Z"
+      "updated": "2026-11-03T06:38:58Z"
     },
     {
       "name": "ollama/ollama",
       "url": "https://github.com/ollama/ollama",
       "description": "Get up and running with Kimi, GLM, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
       "license": "MIT",
-      "stars": 185716,
-      "updated": "2026-11-02T22:16:25Z"
+      "stars": 185742,
+      "updated": "2026-11-03T06:11:27Z"
     },
     {
       "name": "huggingface/transformers",
       "url": "https://github.com/huggingface/transformers",
       "description": "🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training. ",
       "license": "Apache-2.0",
-      "stars": 168459,
-      "updated": "2026-11-02T23:29:07Z"
+      "stars": 168473,
+      "updated": "2026-11-03T05:30:00Z"
     },
     {
       "name": "SYSTRAN/faster-whisper",
       "url": "https://github.com/SYSTRAN/faster-whisper",
       "description": "Faster Whisper transcription with CTranslate2",
       "license": "MIT",
-      "stars": 26418,
+      "stars": 26428,
       "updated": "2026-11-02T11:19:13Z"
     },
     {
@@ -47,7 +47,7 @@
       "url": "https://github.com/OHF-Voice/piper1-gpl",
       "description": "Fast and local neural text-to-speech engine",
       "license": "GPL-3.0",
-      "stars": 6137,
+      "stars": 6142,
       "updated": "2026-11-02T19:45:04Z"
     }
   ],
@@ -60,9 +60,9 @@
       "topic": "artificial intelligence"
     },
     {
-      "title": "A.I. Artificial Intelligence",
-      "url": "https://en.wikipedia.org/wiki/A.I._Artificial_Intelligence",
-      "excerpt": "A.I. Artificial Intelligence (or simply A.I.) is a 2001 American science fiction drama film written and directed by Steven Spielberg. The screenplay by Spielberg is based on a screen story by Ian Watson adapting the 1969 short story \"Supertoys Last A",
+      "title": "Artificial general intelligence",
+      "url": "https://en.wikipedia.org/wiki/Artificial_general_intelligence",
+      "excerpt": "Artificial general intelligence (AGI) is a hypothetical type of artificial intelligence that matches or surpasses human capabilities across virtually all cognitive tasks. Unlike artificial narrow intelligence (ANI), whose competence is confined to we",
       "license": "CC BY-SA (Wikipedia excerpt)",
       "topic": "artificial intelligence"
     },
@@ -74,9 +74,9 @@
       "topic": "software engineering"
     },
     {
-      "title": "Empirical software engineering",
-      "url": "https://en.wikipedia.org/wiki/Empirical_software_engineering",
-      "excerpt": "Empirical software engineering (ESE) (also known as Evidence-based software engineering) is a subfield of software engineering (SE) research that uses empirical research methods to study and evaluate SE techniques. These techniques include: software ",
+      "title": "Reverse engineering",
+      "url": "https://en.wikipedia.org/wiki/Reverse_engineering",
+      "excerpt": "Reverse engineering (also known as backwards engineering or back engineering) is a process or method through which one attempts to understand through deductive reasoning how a previously made device, process, system, or piece of software accomplishes",
       "license": "CC BY-SA (Wikipedia excerpt)",
       "topic": "software engineering"
     },
