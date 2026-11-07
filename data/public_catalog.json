@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-06T23:10:00.030934+00:00",
+  "generated_at": "2026-11-07T02:49:36.971489+00:00",
   "origin": "Public GitHub metadata and attributed Wikipedia excerpts; untrusted until reviewed",
   "repositories": [
     {
@@ -7,7 +7,7 @@
       "url": "https://github.com/fastapi/fastapi",
       "description": "FastAPI framework, high performance, easy to learn, fast to code, ready for production",
       "license": "MIT",
-      "stars": 104524,
+      "stars": 104527,
       "updated": "2026-11-06T11:41:08Z"
     },
     {
@@ -23,23 +23,23 @@
       "url": "https://github.com/ollama/ollama",
       "description": "Get up and running with Kimi, GLM, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
       "license": "MIT",
-      "stars": 186141,
-      "updated": "2026-11-06T22:31:23Z"
+      "stars": 186155,
+      "updated": "2026-11-07T02:44:07Z"
     },
     {
       "name": "huggingface/transformers",
       "url": "https://github.com/huggingface/transformers",
       "description": "🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training. ",
       "license": "Apache-2.0",
-      "stars": 168606,
-      "updated": "2026-11-06T22:58:59Z"
+      "stars": 168607,
+      "updated": "2026-11-07T00:48:00Z"
     },
     {
       "name": "SYSTRAN/faster-whisper",
       "url": "https://github.com/SYSTRAN/faster-whisper",
       "description": "Faster Whisper transcription with CTranslate2",
       "license": "MIT",
-      "stars": 26536,
+      "stars": 26540,
       "updated": "2026-11-06T17:24:51Z"
     },
     {
