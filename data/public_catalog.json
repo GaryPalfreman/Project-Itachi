@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-15T10:55:24.246180+00:00",
+  "generated_at": "2026-11-15T17:43:04.427412+00:00",
   "origin": "Public GitHub metadata and attributed Wikipedia excerpts; untrusted until reviewed",
   "repositories": [
     {
@@ -7,15 +7,15 @@
       "url": "https://github.com/fastapi/fastapi",
       "description": "FastAPI framework, high performance, easy to learn, fast to code, ready for production",
       "license": "MIT",
-      "stars": 104741,
-      "updated": "2026-11-15T09:50:01Z"
+      "stars": 104730,
+      "updated": "2026-11-15T17:10:39Z"
     },
     {
       "name": "streamlit/streamlit",
       "url": "https://github.com/streamlit/streamlit",
       "description": "Streamlit — The agent-native framework for data apps and dashboards.",
       "license": "Apache-2.0",
-      "stars": 46361,
+      "stars": 46365,
       "updated": "2026-11-15T04:32:53Z"
     },
     {
@@ -23,7 +23,7 @@
       "url": "https://github.com/ollama/ollama",
       "description": "Get up and running with Kimi, GLM, MiniMax, DeepSeek, gpt-oss, Qwen, Gemma and other models.",
       "license": "MIT",
-      "stars": 187021,
+      "stars": 187067,
       "updated": "2026-11-14T00:00:10Z"
     },
     {
@@ -31,15 +31,15 @@
       "url": "https://github.com/huggingface/transformers",
       "description": "🤗 Transformers: the model-definition framework for state-of-the-art machine learning models in text, vision, audio, and multimodal models, for both inference and training. ",
       "license": "Apache-2.0",
-      "stars": 168997,
-      "updated": "2026-11-15T00:10:22Z"
+      "stars": 168993,
+      "updated": "2026-11-15T17:38:09Z"
     },
     {
       "name": "SYSTRAN/faster-whisper",
       "url": "https://github.com/SYSTRAN/faster-whisper",
       "description": "Faster Whisper transcription with CTranslate2",
       "license": "MIT",
-      "stars": 26764,
+      "stars": 26770,
       "updated": "2026-11-12T09:05:56Z"
     },
     {
@@ -47,8 +47,8 @@
       "url": "https://github.com/OHF-Voice/piper1-gpl",
       "description": "Fast and local neural text-to-speech engine",
       "license": "GPL-3.0",
-      "stars": 6295,
-      "updated": "2026-11-13T20:31:21Z"
+      "stars": 6299,
+      "updated": "2026-11-15T17:39:28Z"
     }
   ],
   "references": [
@@ -74,9 +74,9 @@
       "topic": "software engineering"
     },
     {
-      "title": "Software development process",
-      "url": "https://en.wikipedia.org/wiki/Software_development_process",
-      "excerpt": "A software development process prescribes a process for developing software. It typically divides an overall effort into smaller steps or sub-processes that are intended to ensure high-quality results. The process may describe specific deliverables –",
+      "title": "Reverse engineering",
+      "url": "https://en.wikipedia.org/wiki/Reverse_engineering",
+      "excerpt": "Reverse engineering (also known as backwards engineering or back engineering) is a process or method through which one attempts to understand through deductive reasoning how a previously made device, process, system, or piece of software accomplishes",
       "license": "CC BY-SA (Wikipedia excerpt)",
       "topic": "software engineering"
     },
